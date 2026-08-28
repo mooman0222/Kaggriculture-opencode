@@ -1,0 +1,150 @@
+Topic #736219: 1st Place(previously)- Submission Strategy for beginners
+  Author: Ryo Hasegawa
+  Posted: 2026-08-19 22:38:49.801000
+  Votes: 64  Comments: 8
+
+Disclaimer: This post includes assumptions based on my experience. The best way is always to experiment for yourself!
+
+How the rating actually moves, how to read your score, and how many times you should (not) submit.
+
+I spent some time studying the rating curves of my own submissions and built a small Elo-style simulator to understand them. Most of what follows is structured as "mechanics → consequence → what to do," so you can skip the mechanics if you only want the checklist at the end. The numbers come from fits to my own submissions and from the simulator; treat them as rules of thumb, not facts about Kaggle's internal system.
+
+TL;DR
+
+
+
+A new submission starts at 600 and is ~90% converged after ~60 games, usually within the first ~5 hours. New submissions initially play ~15 games/hour, then slow to ~1–2/hour.
+
+After that, the score grows only logarithmically—roughly +50–70 per 100 games, or per 3–4 days—and residual noise remains around ±25–50 points. Differences of only a few dozen points are more likely luck than skill.
+
+The live leaderboard is not the final ranking. Per the Evaluation page, after the deadline games keep running for ~two weeks and a Bradley-Terry tournament on those episodes produces the final leaderboard. Your live rating's history, its lucky start, and its "age" count for nothing at the end—only how your last 2 submissions actually fare against the field.
+
+Only your 2 most recent submissions are active, and each new submission starts again at 600. Re-submitting an unchanged bot to "re-roll" its trajectory only moves the live number (and costs you the older copy); it changes nothing about the final ranking. Submit only genuine improvements.
+
+The score counts wins and losses only and matches you against opponents near your current rating. Optimize win rate against the bots around you, not average coin totals. Evaluate offline over enough games.
+
+
+1. What the score is
+
+
+
+The system appears to be Elo-like: after each game, your rating moves by K·(result − expected result). Only W/L matters, not the coin margin. Opponents are selected near your current rating, so your score depends on how often you beat the bots around you—not on how decisively you beat weaker ones.
+
+The update factor K is large at first and shrinks as the number of games, n, increases: roughly K ≈ 200·e^(−n/26), plus a small floor. Consequence: the first few dozen games determine the overall level; everything afterward is mostly slow drift.
+
+
+2. How it moves (measured)
+
+Based on fits to my submissions, the median curve is close to μ(n) ≈ a + b·ln(n). Here, b depends mainly on your win rate (~50–190 in my fits), while a reflects the luck of your first ~40 opponents (approximately ±130 in my fits; others in this thread report byte-identical copies ending 300–1400 apart, so the early path dependence can be much larger than my two submissions suggest). Simulated trajectories for a bot with a fixed underlying strength look like this:
+
+
+
+
+games n
+share of its 400-game rating
+trajectory spread (≈ ±1 SD)
+time since submission
+
+
+
+
+20
+~60%
+±160
+~1.5 h
+
+
+40
+~80%
+±140
+~3 h
+
+
+60
+~87%
+±105
+~4–5 h (end of the burst)
+
+
+96
+~92%
+±80
+~1 day
+
+
+150
+~95%
+±65
+~2–3 days
+
+
+200
+~97%
+±50
+~4 days
+
+
+300
+~99%
+±35
+~1 week
+
+
+
+
+(The wall-clock estimates are based on two of my submissions: a burst of ~15 games/hour for the first 4–5 hours, followed by ~1–2 games/hour. Your results may differ.)
+
+3. So—how should you read your score?
+
+
+
+Don't judge a submission before ~60 games (≈ 5 hours). At 20–40 games, it can sit 100–200 points below where it will eventually settle purely because of the opponent draw.
+
+Compare two of your submissions at the same game count. Never compare a new submission at 50 games with an old one at 300. The older submission may have a 100–150-point advantage purely from age.
+
+Treat differences under ~50 points as noise, even after 200 games. If you "fix" something because your rating fell by 30 points in a day, you are fitting noise.
+
+The same logic applies to the leaderboard: the top ~15 submissions are within one or two SDs of one another. Their order can change daily even when nobody changes their code—and the final ranking will be recomputed from scratch anyway (see below).
+
+
+4. So—how often should you submit?
+
+
+
+Only the 2 most recent submissions are active (up to 5 submissions per day). Submitting a third retires the oldest, and the new submission starts from 600. Those same 2 are what enter the final evaluation.
+
+Re-submitting the same bot for a more favorable draw—a "re-roll"—is worth, in expectation, about +40 live points if judged at 96 games, +25 at 200 games, and +10–15 once both copies have converged, while a freshly submitted copy has less than a 5% chance of overtaking an already-converged copy before ~150 games. And none of that survives the final Bradley-Terry pass. A re-roll costs you a converged trajectory and buys you a nicer number to look at for a while.
+
+Therefore, keep your best bot in one slot and let it age—for your own information, not for the final ranking. Use the second slot only for a version you genuinely believe is stronger, or for a deliberately different version that hedges against a shifting meta—not for copies or tiny parameter changes.
+
+Timing matters less than you think, but not zero: the final tournament is computed from the ~two weeks of games played after the deadline, so what you need on deadline day is simply your two strongest, error-free submissions in the two slots. Don't push untested code at the last minute (an erroring agent plays nothing), and do leave yourself a day to confirm the final pair runs cleanly on the ladder.
+
+
+5. So—what should you optimize offline?
+
+
+
+Optimize win probability against the bots near your target rating, not mean coin totals. A bot that wins 70% of its games by small margins outrates one that wins 60% by huge margins. Most "improvements" that raise your average coin total but increase variance are rating-negative—and Bradley-Terry is, again, fitted on wins and losses only.
+
+Local evaluation has the same noise problem as the ladder: a win rate calculated from 5 games means nothing. Compare variants using the same seeds.
+
+Judge a change by its win rate against each strong opponent, not by the pooled mean. A change that adds +3k coins on average but turns two wins into losses against the #2 bot is a loss on the ladder.
+
+The opponents that matter are the ones that will be on the ladder during the two post-deadline weeks. The population drifts (older engine-version agents drop out, new copies of strong notebooks arrive), so re-check your agent against the current meta every week or so rather than tuning once and freezing.
+
+
+6. Checklist ("because → do")
+
+
+
+Because ~90% of the level is established in the first ~60 games → wait ~6 hours before judging; judge at 100+ games.
+
+Because the curve follows a + b·ln(n), with roughly ±50 points of residual noise → treat moves under 50 points as noise; compare submissions at equal n.
+
+Because only the 2 most recent submissions are active, every new submission starts at 600, and the live number does not enter the final ranking → never re-submit an unchanged bot; use the second slot for a genuine improvement or a hedge.
+
+Because the score (and the final Bradley-Terry fit) counts only W/L against the nearby pool → optimize win rate against strong opponents, using the same seeds.
+
+Because the final leaderboard is a Bradley-Terry tournament on the ~2 weeks of games after the deadline → your final two slots should hold your two strongest, error-free agents; the rest of the live history is irrelevant.
+
+
