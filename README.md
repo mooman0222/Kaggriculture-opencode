@@ -11,7 +11,7 @@
 - 各プレイヤーは 10×10 の農場 (NW 4象限のみ最初から解放) で作物を育て市場で売る
 - 市場価格は需給で変動: 売ると価格が下がり、町の店が消費すると上がる
 - 作物: WHEAT / CARROT / TOMATO / STRAWBERRY / MELON、動物: GOOSE / COW / SHEEP
-- 詳細ルールは `.venv/lib/python3.14/site-packages/kaggle_environments/envs/kaggriculture/README.md` を参照
+- 詳細ルールは `kaggle-environments` パッケージ内の `kaggriculture/README.md` を参照
 
 ## 構成
 
@@ -23,33 +23,24 @@ tests/evaluate.py     複数試合の勝率・平均所持金統計
 requirements.txt
 ```
 
-## セットアップ (WSL / Linux)
+## セットアップ
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-Python 3.14 では pygame のビルドに失敗するため、代わりに pygame-ce を先に入れる:
-
-```bash
-.venv/bin/pip install pygame-ce
-.venv/bin/pip install --no-deps "kaggle-environments>=1.32.2"
-.venv/bin/pip install jsonschema requests websocket-client numpy termcolor
+pip install -r requirements.txt
 ```
 
 ## テスト
 
 ```bash
 # 1試合 (シード固定・対戦相手指定)
-.venv/bin/python tests/run_match.py --seed 1 --opponent random
-.venv/bin/python tests/run_match.py --seed 1 --opponent base
-.venv/bin/python tests/run_match.py --seed 1 --opponent starter --replay replay.json
+python tests/run_match.py --seed 1 --opponent random
+python tests/run_match.py --seed 1 --opponent base
+python tests/run_match.py --seed 1 --opponent starter --replay replay.json
 
 # 統計評価 (勝率・平均所持金)
-.venv/bin/python tests/evaluate.py --games 20 --opponent random
-.venv/bin/python tests/evaluate.py --games 20 --opponent starter
-.venv/bin/python tests/evaluate.py --games 20 --opponent base
+python tests/evaluate.py --games 20 --opponent random
+python tests/evaluate.py --games 20 --opponent starter
+python tests/evaluate.py --games 20 --opponent base
 ```
 
 対戦相手は `random` (ランダム), `starter` (組み込み carrot ループ), `base` (melon_maxxer 原版)。
