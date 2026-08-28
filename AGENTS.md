@@ -11,6 +11,21 @@
 - 統計評価: `.venv/bin/python tests/evaluate.py --games N --opponent {random,starter,base}`
 - 提出: `.venv/bin/kaggle competitions submit kaggriculture -f main.py -m "..."` (1日5回まで、提出前にユーザーに確認)
 
+## 現在の最優先プロジェクト (2026-08-28〜)
+
+**自前ルート生成 (E018)** — 上位 (レーティング~3000) に太刀打ちする唯一の道と判断。
+設計書: `.opencode/knowledge/refs/route-generation-project.md`
+ツール: `tests/route_gen.py` (ルート抽出・評価・変異最適化・圧縮)
+
+マイルストーン:
+1. **M1**: ルート農場 + 全品目リアクティブ市場 (E016b の品目ミスマッチ修正)
+2. **M2**: オーバーレイ (雑草修復+8ステップリプレイ・売却順序・ハンド調整)
+3. **M3**: 手書きプランナーで自前ルート生成 + 変異最適化
+4. **M4**: 統合・提出
+
+資産: `/tmp/opencode/topdata/` に上位5チームの9リプレイ (セッション間で消える場合あり —
+必要なら再ダウンロード: `kaggle competitions episodes <submissionId>` + `kaggle competitions replay <episodeId>`)
+
 ## 自己改善ループ
 
 毎回の改善作業は次のサイクルで回す:
@@ -33,9 +48,10 @@
 - 「やってはいけない」系の知見 (例: 土地購入はメロン専業で逆効果) も、戦略が変われば再評価の価値がある。知見は行動の禁止ではなく再評価の出発点
 - 新しい仮説はコストが安いうちにどんどん試す。既存知見との整合性チェックは実験の前ではなく後でよい
 
-## ゲームメカニクスの要点 (詳細は .venv 内 README)
+## ゲームメカニクスの要点 (詳細は kaggle-environments パッケージ内 README)
 
 - 作物: WHEAT(10/2d) CARROT(20/2d) TOMATO(50/8d,継続) STRAWBERRY(100/10d,継続) MELON(80/10d)
 - 動物: GOOSE(300,卵) COW(400,ミルク) SHEEP(500,羊毛) — 毎日小麦フィード必須
 - 価格: 売ると下がり続ける (永続)。店の需要で上がる。メロンは供給に極端に敏感
 - 納屋キャップ100、ハンドは1日限り (コスト fib)、土地 NE/SW/SE = $1k/2k/4k
+- 市場オーダーは1ターン10件まで (売却は最優先で組み立てること)
