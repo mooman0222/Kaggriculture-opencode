@@ -1,125 +1,19 @@
-"""Kaggriculture agent — E018: ルート農場 + 全品目リアクティブ市場 + ギャップフィラーハンド.
+"""E018 M1: ルート農場 + 全品目リアクティブ市場.
 
-ルート: 上位チーム (ИТМОНИ) の 720 ステップ行動計画を base85+zlib で埋め込み、
-farmer/hands はルートを再生、市場オーダーは全品目対応のリアクティブロジックで置換。
-M3c/d: 余剰ハンド (最大2人) は水やり/雑草除去を最優先。ルートが今後48ステップ以内に
-BUILD_PASTURE/PLANT する位置の雑草を優先除去 (位置シミュレーションで予測)。
-種の購入は hour2 以降 (hour1 の雇用資金を守る)。
+ルート (720ステップの farmer/hands 行動) をそのまま再生し、市場オーダーだけを
+全品目対応のリアクティブロジックに置き換える (E016b の品目ミスマッチ修正)。
 
-検証 (2026-08-29, E018-M1/M2/M3d, ローカル・決定的相手 base 15試合):
-  - 平均 $61.8k (seeds 0-14)、勝率15/15
-  - 旧リアクティブ型 (E017b, $41k) を大きく上回る
-
-提出形式: このファイルの `agent(obs)` をそのまま提出する。
+リアクティブ市場の設計:
+  - 売却: MELON/WHEAT/STRAWBERRY/CARROT/MILK/WOOL/EGG/FERTILIZER 全部 (売却最優先)
+  - 種: ルートの将来の植え付け (lookahead ウィンドウ内の PLANT 数) を満たすよう全作物購入
+  - 動物: ルートの累積購入ペースを目標に資金ゲート付きで購入 (配置 PICKUP 前に届ける)
+  - 土地: ルートの購入回数を目標に同じタイミングで購入 (遅延は農場スケジュール崩壊)
+  - 雇用: ルートの1日あたり雇用数を上限に hour1-2 で資金ゲート付きで雇用
+  - フィード: shed 在庫ターゲット管理 (ルートが一日中 PICKUP するため常時補充)
+  - 10件制限: 売却 > 雇用 > 動物/土地 > 種/製品 の優先順でトリム
+  - 売却順序: 価格影響の大きい売りを先に (Kaito 方式)
 """
-import base64
-import json
 import math
-import zlib
-
-_ROUTE_B85 = (
-    "c-rk<U5{H=a{MdCJnw@!<c#dRjU{d@tn4vHQizQ~7zVOIfME0B<Sod5kH(`RFE6XRs`~V$<h9>89P;vfpYH1F>L362>fe9<<?ny{<?5fl`0?t8"
-    "ySHzz_J8`~>OX$|uYddR$G0B;`1{Yl{O8~P=hwgf?@wP?U-<FroA-bH>4%5=SMOiGyZZ32-M8Dj#}_X?eD24qZ(l!buV$|vzwmauef9Y1@3wF5"
-    "zdw9>`k&M1JpSkI``6#yy?OlK+i$nqA3nU;q`v_gwYuJ)_we=0zr6op{@7!Gf4tgl-@bc#?DzK%@4kI{`8+Vsuh=*qe&x9>4Zjlhb93I!Z{ELt"
-    "^XjJ$PkHzLX^^JBJ^96fF21>Yxjl~K>?c0__xpFpDIff;KR>RL`2gO%+dh1J2KX`a7hc|_!!-Rd@4<(MEH^soT=x!BKIz9bT^}zr)rW>ZE%>Kj"
-    "IQ&+_Ort@X{8q=5zrBAyzL?UPM$<d_)!vzI9Wc1P8`ct<YSi5NC>_2T3{L&Y&;5_qP<8pk7WXcl-{pC<y(>=0xyg0X+~+miZi0xm#X2<AR(oNv"
-    "=D&ihH*6~=KXcx-m113ed|A04jtgn_iaqT9&71AZcR&4k`|$4do7eyPG^<T5h4)Oksc4~NL-Dg5$C0MyHrn)Fi!YBc3-<iVs9bHc1LAlr4UaB*"
-    "wAN63-+;$G^{8+w!iRw#bv0BPQh05EhrN2Z|A9X2`EFqk!%pMd?VDfS=*d_-9hmsMT`TA9I&qa|mWg=J09XBKZ1}D`^PI+=bH%)s#`*mEeEaU<"
-    "Zuiah;o-0Na)Z4-O!1i^gN9fADLxSDDl>bruqhK88K&!D-z1J@a`rPr7pi|hbJGOgPw2jOb~U_gM{aNZYW?`K$#7YCm{D89Wo(*)J>JjccsV^P"
-    "=l>vwmJ88j{`K%|OrDtGe}lNd<k4;yhzTS>Wn+fW!04++k=bC?7Vcjxu<_<n@r=8HJ99n!BXOW*KWG3n+HRF@LDOxMg_hQzO^@pc3o{R8+emWZ"
-    "KOt!2Hq}9GTzkMUf6A~8zAL*&QZuF;;D%V4qSZ5h$e1NLbuNj0(`MB)Ez-$-cW%{Gi~#&Vt@k9J;oi;6z?#GHLzW3?oPeEccV=$L;0bTBGR)C("
-    "Y>Vex@dCI(2z4z8d<4JwV*hCok<ZHBI5K%&-tTl%<JgeruN49Z-0HxeSP-7+4|v#@Jb?@BTb^8;%|^&sSXTr|2FG-a|8W)+|Ip04hkuD9)HP)0"
-    "DH{H`VP->h@?#u2e%=c=+Aa0mni6zgn5bh^{CIV>U^LUKz9H0rtezC_8*BZ^Bu~0RC%;a^>X>d~7?<~m<;Rt6N9KhLZFA->N_3`zZHP}o_sMK%"
-    "jw5ZOpwABpHn05TqXCy3dFM95O==TCoA4$ylGIlrcyluz*owjg@WLJqGa5lL@@B75#@<{KHyZ1x4J!?Hl~6X9pT!0HRt?!v>#;tQCwEA6p+xW3"
-    "XVee%A^R!$OgD0Nv<vaAbr_=IC2+i8j;|tw27MNePQjWyKJjRSV_eN1b^`-MJv_UDD?bPCar&}M(UQA#TxcR+ue6|Gb8;ryxjo}kkdQ%m#PKGL"
-    "f^V8kxe+iidJoQt&4k<Z#rT|goAJkNW3<wuV8Fsfv)IreKIHk5zP`+;w1D9rURsXc8jCmwTaRNLxdeKgHiY7qaS4Jpz>RgiU(U>w?7WG!Mv*jX"
-    "S#}w=6Z;8SlK9PX{4X+CcZn4{X3$0!8ug4jNQ5{AFbe_8muRq<4uJ6P{{C?b+$LRwKx&t9b7%;-db5B%PZ5}04%0q{C*|4+OTnmV5HC75bJBK{"
-    "y%qQ%)I1T|JD=~>b%Gos##$a@E@oEX$(NcI0ovy;$*Nez<M?#Z%|BncvyNwX?mW~C)$2nKKDdsruC&!Edlko5<&+e7m>kCh{(Bze-Dule4fN-k"
-    "U2|X}pEcCziIr7mN(RlLkoobI!cmg05s0dju@Fe#v)E^0X~Dk28|$QHlV~VEqu3;*34!z8V}keO-KTv~nU5f7=pb^F9+cDWpvR9<Hyewbp9*U~"
-    "+OisOvCgGuBq5pW(1pQ1V*Gw?{e_3iO~ozNgF?~~LN12mbpRb5=_goJF|^Qv_ifKY71udhe-M|hK)`c~N2D4M*m2zdsS|!C$1(8TZ3Zgw#-Uv?"
-    "IJj(K9cMB7^{&MeP2r&tes-d^c!WkI41}S;;ey^bT9lJB$UEhX{H`n{RW};ZF^l@uKY_V`%$a2o8fpP|PagtRW`;-Qm^W!{Bq<bDJ)y|CE0}{l"
-    "dx>CmB=k4B&>=G)UNx05&PBF#Q&$^aBBKW=`eo^-bBlH5+ts&uR@^`gqb3Sj0&1{ToLlTSdd|C~JdmH@8bM2pwxFLvS08%MHZmN{bb1T%kJxS`"
-    "Y6`rL;hVi~fp8Ja#(BZwgQp88EM@N&uBzh#I{|jlx@*Z9K;bMn*C-NIz(m3s<krYZ3+9LYAo&j?P#Ka|!KI)>58p%sUm5K?m`Q=`&OzQ4>Mq}{"
-    "!j`wq1*R>^=vilzUP2(Z6#a$2=mI_H{KmG{<Xsem85mpixQTm(4wL%8qNO_lkwki7<yNGRjy{nDlZJ5qV$`9CsZs1d0BVoqGswR5SrTYfAch-s"
-    "uD2fHvc(_xdN`{=N8y`n{Y`QcMxTxr0KP;WiLA}uJ&5!;>#o(J(DC!kpoa~$t;^gVfFnfE__G_UGDLy_IBDCd+2T->8lYx&Lkrf+fOJRhm@pC?"
-    "j02#>UKeL2OgLl$bR*V$ML1T%h-XWv`NXtmt5{w%#O;76Ycw2iiP=G_{20n8b+dB_ftUS$C<GB_oUyOcTq4`d-D*Z2Xb&JiaeA7Z95L-|6!SNj"
-    "ce3x0L5wRVyx%}_CVmG-_P1|&r39Hwf&}mR#6k}bS;k{jMI^=#@OA_zotx8ZH{W8mIyW)b4dsQ1Z4Y$;px#PZ0b6YjKdVBU+)HH9RQyo0L;4O9"
-    "P@-}&ts|OeL>*rx)rAa)Q5u_ga-z@XV?$Dc=vKMOB32uP*tJ|jkMfGL<1Xd#ZluT*K^T*nP;;H)k|fs^sjpOfI^?XmNl8N%lT4zn65c{z*u?a("
-    "Q=BlC1jjsbm`60ji@}=#hFxS(GcT$>?9sR(Ta>WMwKqr52ne5&J&1wU<DF+jFOOHpbBW5^y~X-D%Lfl5%*R)gmTt8v$$grn=}s<OWFHQ5N|n?;"
-    "tzJz^@0*xJ0y`h=h5)%3)7QvJ7&Pb(KPoBi^AKHqOF&=<!5Z)c!EUE4XmUAb2Al`!q*wG%2C`~%7?mcRBB;ucZOIeF`}iR|q|VU1oSR-2A(}Y<"
-    "!sMn5h2F+i?VGKEpw2S}V{3-6)~e?W22HnO76Q63lIIi}ofDK(dyKS`z&fr*u2@79mmlQ|KQ8RiKjwLQ0iNkBb7)QK=j8jfs!z>o6d!&XA<PI8"
-    "f?rOlG=;H;UI@y1hS!dRBc<X$#F_zN1r<AY2@{_X8FHD=$M-=NWj0H~*G0_YM)4|XZam5=SS8TX^LpMS1rbT!J-nO<R7Cy_&E<MhW}ebO5o-tC"
-    "CghYl6EVM~kk5fVjnvh~!TbhoOu@<ETsw+Xda?hquk9)!>5hM8xMjc;(l-qBcZ9Dba15u}r5~p+UY@g$7;2a;q>CP`l(>-^lsfJh!80j>nhB}}"
-    "{Aes6uUh78)dYqt_;I+9gRx|^eQ{^zd>w|AGNEvYxt_Tb6>1YkbGHT;y5W0rh7Ubhip_<T3--yu<V!W*;K^)@uOPy*LMy$6c@^p?l3WD=Z^40)"
-    "1WQs^&S5O6+mBd}#@uW8shy2Y)(l(<A>jxdoDkGPtBOIVB~gKGcA*GFKe+IO<pwW0b7dV`O3A&1VrIhAA@o!QWC&{xAzX>vTRbnLV#e3|Cb}I_"
-    "c1G<)9R`Joox~i_bn+{dsU;N#9s!hwi-%ksHPY^}jj3d{ad4%e>UMIoOSAFS-V8fYZ;)oy%2h7L&|oXOCOgWB@2wyDfdnn$#|ljb2mZw5OEWFd"
-    "m&S#WsTvb?wu#QK4Ji<~eIU7r<!YD+LcZmcEa`2gbcw5xWq!&~q!&U%5y6T<U9rc$*ouX|13t^Bxw31}OhAW^2QTF|`+%;so`;#E%DCBiIJK^("
-    "hE(bzVg)P3mRFbSPi;fTsoXLOf_7K_akV`38vvn?74H#+nS{*+wajr~Mf9V`P&md8h3!?(w8m%-NypZQH7`LqT2q{0Bf|r0wfTBKR7Wo`cxLet"
-    "#67S=a^*sr3?zlSPJqUY>h!9gp(%H*%_2}J8%Zq>PlV=R$2OH5kV!KF05@`Q33lKY7@AORUcdRvnd1FP;;NtTq!y+RdW$BLATk33!25dLSF3ea"
-    "-|9DmzvQ?KVMfZ766ea1Ar@%a4K;HC>_k+wFL5i3dQ800EZ<^VC0JNWCkznL`21t$nWCc2qaHbR#ZA#d3z2LJt}t5%kDR5K=RanpZfmRogS(Da"
-    "8$3&>o@yO(6IPp`rXi%g)WvMzLbG(S88@*5S*w63y0rK*5E{vF%2n*@1Qo<zm<zew=vlppWmXM$5gg(qWhNAQVKSv^^<`pN-t0|8ErdG)uR(5n"
-    "Q9N$FUr<SkS!(7&=KGDPc=D(<sR(6+;jZ_t8Yu!Sk&~3CUzdxoMGgSZm?Og%@OwOOz2K5Fc3SRO#ypHVEJaQ>MWH`LZphFUo%YrE@SWjP()M{V"
-    "?w4EY`oBTXe25u=GBW1+PzuhG=FQwDX*0<-DY*Y7HI<IAZYzy~bgk)<941t7$J-oO=oJN$?2IKrQ`TJyy%WBvg9U1V?yhxflyHVikq&K>2Zf*m"
-    "CZgnoMt9@21JEntfj17Jhpn0Kv!#KIq<Ladb&s)gF-~Bj0rL)R-GlRa5@aC>Fl?1(S({a_qgq@2S|a-x!=5lMXaGwrB1i8tp&YnKR2pREWA!pl"
-    "tYEuhfVEZx!fSk`X(r`qpxvagrKmWA;PZb&^@HK6gEin>PLr)g_`~Kq`ms)35F}z&=^3PHEL9aVP`l+)AGo}DEUqDyu<yi5IGZ+?n<1$XeQYE>"
-    "+Y;i8905c*IVOvTSTnpen6T(&ph)JzW-*jy{f~mOAh~s<00SYi4511Bxnai8DRT*sPDC(<mDYUzUQ-GThW&}F#=aj;$puLrxQ(=8Ub(VPLz>KP"
-    "%bh5SLS)%XpF_4xehot}wXKRzz$p#160r479IJuhucgxn&PlSGa*pzdMuePfV*s%yam158&HjX^(&RJ48zCrj>YxilFE2>7L90b50i>o&Htt-q"
-    "H6hU99l2^%)84J@NsN;{RLDTdw=&U*z$!UZotZoey{Ar2{hGril_+@3ZbJHi0YK{{-!_C3=cwuGI?KVJ=fG?)rKVUjN!}0dheZ~W@sdxKbe&2T"
-    "Yj|rZaBNO`N{fYDn@0=_`Yu^Gk4DWz8U7Yxx{>2Vh>__kTB`l<`rT>8IfTW*NW8tRRl}4p9j;lcQ!Kr@4vjK+<svkUCI6izb``9d<1=D|%(Zh^"
-    "QlexZA<dW+g&<c>H!$~^s=(ZsDllusS%#ZM!RsWB)9Oo>D+kR66<}MfmZLziG0MwI>Zs+Khb;O*xQNrCcRGuvUN-fLdGXG>9rp!iUu|n9JNM|N"
-    "MlZ_BBA%~<19xP3F{@M95|J2f3`W=`aspf$?p&@Wl6yPRx44_wxT{e)7DM?62Q-N0ujJ7<arlrIrz_6HU}+2uOM8J4XDkV*8aai<4phncN#LGk"
-    "HCa{BSz1lf6Se7Q#*>%Wq>8gaj}za|R(hjiiC|E|%YQP|+bTpk1*oZK{t0p+R4_%S3D@(o(SBh?oMgd51awGz4_-7SA_k{}XW6s^nLw7j7TpIr"
-    "N^hLFb5c%O2-C?RgbFngQcZ(bZc$8W>hj7J8T7o?2n$RwO+*eQR@-K867Nx(BvT}W#a$`;SDFlqi9daKFge^)BAA>Z2L^Eu5$A`;>SRVNHF^lm"
-    "rAUsWAQoV4ClHQ9qx^@`VU~4(DgcpG<thBG1*D#0ch?!n3b4CdZK%g2it>mNbMgg<^V9I(3_9PEaj!<rBPU<Wg|IqRkto_g>a&}3P)rpOWKDC{"
-    "9={UnL=#KmhI-pXw;9h@`}&940(3a}(1+~Fx<FF^I2*a1XtCpuVrcXtiI!?*bI$dtuYR(7t(-3jOU7;nCD=8kexb|OOde&pXZyy5D5t>==5A^q"
-    "pcGJ4iF%)G7o|I)qzX;<X5_dRS|40_^^LkKvmVGaFd060Oc{|CJ5du>{Z3sEn6J6Lgz!{;VWFOo%r1mD*=l*Ugv`9%C_j!Qq~*6r6^bBgTBIgc"
-    "l+>B_3GR9=>aZD9u*xbZufx8fo|DN^#m-<hTHIMNUw^I4U66*Go(OrZFYr}+hD8<+l)a`?>SVC0$B7|kcbnxL+6()W<78-F#&NQZWX%g`msR^K"
-    "W2z}U!z5#LW6{_oCH0jMtkB^vvC^AlLaaM6v*>-NB%I8)HU+|H{wT6#q+}?kckQZX8X*|Oj^L%P5sVUVyfJT%Tl@kyB1fFFQ0!P1U8>A(Qgl=V"
-    "c8FMjUU6?)+L$%*u{<dby`mZE6bhrc#*1aXX+;NF=yno^eErYTvL8YLxpk&rPnuv>{PNchkCmlE450`rHiGB@6tYmkI#T|Pl^@6%YKtbB1vu2n"
-    "AB@Hjr>T!@>%es2%ir1-P8vIv6sw{Ojxr@ZZ`pOovf5nkCJ{-3;IdumLf41v1ZmL*CrRf@wq_DLDqw6-+|Q9R&=eu7suPS?E#1M!@`jOsq`s<2"
-    "s{YD8j%aQuCteE+&8ahfE5c})mA#JV5;3w^@jwB(g|jcLMUX02U}J{@4z%bTMBPb<K&N<w*9)B71bInx7t??JL0ManvQ|@bvy)A4O$cw5Eu@>G"
-    "=-Uh2h)+d>^YeSt`4D-ApMW-3lK1_zsjEr)mtCrFtY58V2AQawASE}z4eTJ;v5iK$75DJ+bh}}?sU$tEThJ6k&x`s*#-lX);=DBj>WJTfjQRKo"
-    "$QNF`#H9UV>Cn*=K?nr!giL8NhhRq`@0&r?r=Zd^R+^wkvCBM!y7L$ZJEK(bHnAv-rSqmLP;wHk!#9upQM{R!*P@g`Q@El?Aple7OW|h}>479y"
-    "J8-Y%wHTZy>S`oOzb#@IJRnA**RAls0b=6pK0P^A<il4NWPXyA`YD_=YFb9oC^86#0$ra3?#W!vK_4<j*Mlj<UfnNShK~h5^WF|HDxvTjYYo8+"
-    "v%)2Xh9kxsPfFG4&U&t`JpP;z8X;gQ26`Q1pa}@CNsW-1(o|Nje}lNCD6*&mmnniJmHoWV$!+wT8ACy<1PZx_YZG=fb0G43pB!Ighj4=oo{5AA"
-    "^>>wH$pAz8p~I*TQ!{3Ux-cy;Cugh=H>9;3p&KBlNDfX!hyI;ls7UF3(xlXUQm|ciTnAh!5=q<=N&p?+DAaO?NSl(vc$y!f=;IgcE9C!^V)n{p"
-    "2rNY%rp>ux5ciLHCl&~sFr617ja3uXb%FTYFznn9L6{{EsFChP&Tk)WCb-C0EgI@!Y48LC8|*sklNcbYE#Q)fA$t)`&=@tEBU-!wUlmyQ3M-7W"
-    "5rqq!($S}iOKKs2WdDuflq}B2J}F2?+Wc3ijwYo}Gey66Q=!Q@tD@R;HRiuXf_hAcL&<=vGptsXgf!_W69`8H_6m>{Q0#!5>+Ag@W<z-FZB^_M"
-    "!$q8FHEc&PXPNOJ)7h9OTg-NXkN7`70TWmQjXa}B0s<o=e_F|hE^NmG67&Z<vBFN2p(|NE&!+=!5`n!hSv}g>I#?}OPnHT=`AFYqP;54&3lUp_"
-    "rAL!g2We7IN9;=|rHOoxhAOrL35_}q)J3Q?NCkYlb+&B!a{0=(ZuW!_w<f%!v*Tv7zg+!W5_uqtPOd>b&Ll7@iqLvXHJZ}$WF$i^jq2Ek_;Nov"
-    "F^4CSak@Jv@L4q^no^&Y^MGAm71|g(*T%%H2hIf^3S#P&QmNnpEE$~#nkYm#8(bh`0og=h1`Z)swcdzu|In=JL2MbG$E7+WNCiO^i>$QVfWZP;"
-    "FTETJ7i%QP!bd~lW?u%$1QcZ=%H{G}`LZolx-w8ATC@ZzFB0)4Em|gJ&#p!I&ncN(En5IDCJRH`nNbiFoh2!)^2~vQ11&oh2V)hq<*u+<2>zdz"
-    "FoCr&Reswk6{;fkm=hM|8IuVrCOHuSl_fgjTB%|J9S|O^3$#3)x!dqM@P`Y-DGvYpU^GG<UkX=?swmptJG~6P+rGK~p40)k;i>pJJi4ya7MWm-"
-    "p-AA?(I`<7qpY^PknM#Ee{k+0v^028+rSrSCK@Wj-JH9iOGu)=G|~=pypjoz3;6d)e%{W>zcmo&RQbJ=BSjr6S|>&XZ-=;naOZ{TwGM~qyi+|u"
-    "aQAj3IdLS_xUjN0^kxVHXv!3eAvig1V_ZOiF#N&0sY4yQ&XuC;hn3G`0K~6#OOz#eE}(Gl7|=UmFH&M$YQz-Pt2lo&<?#D+QmhO^RWalYNvQyN"
-    "wdksqWo_~;bs{t8@Q<i!Z3I)FDZe_DF@4oBzf>gwv)1c1W0c^N1N5!;eHEFBP9z?L_&8UKEhOp2?1qmv5~jJOoI^r|aP$mU;zXG_;{*jWP{GnP"
-    "1z^HBdpoP%%?o)1A(RYHpw(*r5E*Piwkk=a*8~65AhHe4!Zu2QAQa3`F)@UbM;LC4@bfbD9rziu=I;eG{A4h!d&G-EeUg3&a_^K}+$ClCqP7Z{"
-    "0rh*aoY(@|e17oEu+IB<VMM8p;d<=EDWx$R^=@|sBrldREG93vl)5!xvKnW%W7l#_RC13cA%7`X^Lk&eo|&H<a7%=zV@~i|rrIrrj+n@h&7UDy"
-    "@r(UX>03d&!l*dRabX2xDr((X5TJ+H$WT*LU0flGM>CyEaArp>T$wcHC2JGMu<8C~h#eeCQv{9XNjhYWTH##1$cUwL=RssQcBNbnws_~+PSNV~"
-    "(^{=^xkC20Dz~Q!U{-=h2+h%j{sJ}240535=XBJ^DWb}R^3Jl?!<}>dBs5zj{9_HX)Ly7HH{xmtpMBxmW%5}!Wx#4RC|Xx4yo2asY9j3Fwmo}Q"
-    "&hSHbN}h?N<lYWvr%HaZAxUQ@S2ZM(#@h2d5<I66R7!}IwfG@0aA=WIm?H;umQ>+)i;Q7+wo)14WRU6(2j?YA;&~O2EEHxDYJaM}2V>MIr5g^T"
-    "Oi)Zy1H1?=AdoGDh~+Gt0R<!rX0uo=q@hMW&Mc*LusSY+ImuQS#}t%ZQA_=F%HzUQ^)R|>?ps%ury=epczkN@4YEO$0*EGIK%f)JAdBOKbzS_^"
-    "Twr7W3m7_4s5CD~k_D=Z#8aPFU4IlcIT5HH0)}vaGB_OcEDsqvu2R1|NSMN3f`vvirZsrj!Cmr{LVnNWz)X;Emff{|q{Fp9I^^*-#=OX1Ro!lj"
-    "V8lw=kkchLXA;ykhYbtnM4%=Ip)Z-Po4;~1i8*aD0)L`q7JVM-@j;j`n5YCbu?~Eg;0dw==V;+?F~ieAYzNfr%2gMnlOxT##WU5V4VsrcvqBEK"
-    "e9aJG7rk$p#Z1e5u|i4+=z^pjsVH8WX4vVe2Vh-|4Cn;^VP1M1Q0u5M%iGM?*KRwUt!xGVbtlNq?OC<u_K=HRM>;hqiZax6g*B3=BAonV#ZFWK"
-    "wVf*rIiGtJA5w*=(Q>ZuJ!<x*(tWi6%W&;hqju)9>`+o&oybo~-zoS+F$4xLBd1!kcw`J@YR-jVy}pcGtVH;zm_#>Ih-o6Eg-%l%lryA_<jFfR"
-    "qhBOq&-*%m+^96eMLHK|p^~&llIy6z;jIZ+PTW;5B1_;&+r~hf1Xhef&cBiCta2jQsG^lE(B?W7ug>oo3T_m(fUi78NL(g`1HyY3(H4WLq1s5V"
-    ";vBj;0`b)!YG4;s0|R%NUhv?<o`1M^k{K(SUL-$W*9rK|>3l7j?`VmC!F$KBiy5JH$-1MS=n$VBo)*!s4d!Tuu_{tZ!MTv7*HnO%ZI`ItQ!3bg"
-    "uo*v|N(+$-1<^GWYeQoSTigy-spUv<Yp7cWzgDU_N$WW9T00Qaow3<F>YiF95&%skA}iz)TY8t8YoVTSW6vF;L#xjjjKRvzKX{=MsW4+QC1L6t"
-    "RvLh|3aXrI!5Xd~ItWF1e(D%)kZiPZ$v}2BcGQLtc9U+<8Yhk$B<QJ;%Ajbp<#VGYr!CakX)pEzB~`5)htjPcGI7m#|Lwl13@cIV*SXy}-zzaX"
-    "Iy3FibxwLnLqn)%iG@R!ZXfSLDjkM;oV(n4cXN6COVweWh=8UNVETk6`eJouw^b4{(2M`Uiw%jOMHmvA+bH6b&$%%m*IE6`A<B0_3XY1f4lM*{"
-    "6aPLdxtbzh=G}1P<*ME+nX5{PZHyTw3Qn{ZPtC12Pkml%e?xjIP7<PdI|!edXLVe_xK@kGvjDcJ)}W>{EmrHWn9fEWqbg6TUcfNjww^%Xx#`)J"
-    "$R_M`fq}??ebJ9@Em|tai&(KwEuQ)He#yF}hTpF#1TD3HDN7fh#_}0((H%Ud8l}FM+MNAmNxd4;&P$py$cnu6mMUdvOfab`Z@<J*#KgXpnp~(?"
-    "G&M5VDP(t%il%V1trEGZMJ=)&mMmdPr5DM{%xR4S=S4YDVNAYuS1e+1(ZZxOSfG~XGL;C1ijtD1sIXo=nrze@WlRvmUe4)?NwLAv;-cu4EJ&9H"
-    "Z!TL?bmCwlrXnN)!Sve_gY*Tayn|r=*N`Rn;cESz(gZC^pkCfk!tFP3F1~itXp#LUHBY#a&U(BE;g7X!!9t`B)IO&5?r25ZGA_lkp0w;JGiM!D"
-    "kfutW9^p{%&#ZE!)yz7Az*}m(V)e0QN`1m*uB;h85hHpki1I>e?#d-~Yo%0cl|6-#<n<9#f3&mCVZ_iBGN21mWuFI5k~75ASr8UrTPaY2?K0|9"
-    "qPbJiI&LWoN)oGsecM?H^lLG_v{oKez(VwCGYUd?vIvZ{M&~3p!Xts3blX=TR4!^RfO5Kyl|zD1%7W?<bE0^qPYADxu&NgdWr9{t334|~E!6!~"
-    "uKo~Us6uaAMp!*3cx`8|QvI{tz<X>5C5T6n9|fzO8vlnMm1vGD2q1tn8-ZPz@kZHgDk~6uPR%2ZVUaFSdui}0<tQd-s-;Q6!af89BBmT!W3-p!"
-    "aR=(|x<w+bu5#w-Mx9lva3rJ=G9PJVHrLG)S1+{3EvO|5!ZV5ycf1Yz2afrOhF76zVF8Shd$5#vNU~v4)4(V@L{978O`->YMJTyKp*I&}^?H&7"
-    "`hqzvu18)(N$sD`6r=g>YLvBirA7I%W!};f-5^8HJvWP2_X(!}TQy_C8>1cI1xBl?tvU>y*iTMLL{`W!DfF73V}*7T9vUxxNIhj;I;d%QbCL${"
-    "(b?km7IJ)all)VZa-|eCGe-8*9XP7_*k%$GcanU1)L*D*mM<l3X2SlSLt`HsgIPg&ei=Mf&LEYjt%p`&P~pacwNN);ieTEI7(k&cc_=Y{i>Dz|"
-    "@muxwO?g$K!mM5dOYAYbZ2$j|{CB$"
-)
 CROPS4 = ["WHEAT", "CARROT", "STRAWBERRY", "MELON"]
 SEED_COST = {"WHEAT": 10, "CARROT": 20, "STRAWBERRY": 100, "MELON": 80}
 ANIMAL_COST = {"GOOSE": 300, "COW": 400, "SHEEP": 500}
@@ -136,10 +30,6 @@ LAND_BUFFER = 100
 FERT_BUFFER = 250
 SEED_MAX_BUY = 8
 RANK_SELL_ORDERS = False
-# M3: ギャップフィラーハンド。ルートの雇用数に加えて最大 GAP_HIRE_MAX 人を
-# 追加雇用し、水やり・雑草除去をリアクティブに実行させる (ルートのハンド位置
-# ドリフトで水やりが漏れた作物の枯死を防ぐ)
-GAP_HIRE_MAX = 2
 # M5 資金フロー修正: 種の大量前買い (96ステップ先読み) が d0-9 の資金を枯渇させ、
 # ルートの重要購入 (d4 牛・d6 土地) を遅らせて動物滞留・土地遅延を連鎖させていた
 # (LB 実戦リプレイ分析: d6 にイチゴ種23個=$2.3k を前買い vs 元プレイヤーは4個)。
@@ -159,6 +49,10 @@ M5_OFFSET = True
 # ギャップフィラーはルート雇用が完了した後 (hour > その日の最終 HIRE hour) のみ。
 M5_ROUTE_HIRES = True
 M5_GAP_HIRE_LATE = True
+# M3: ギャップフィラーハンド。ルートの雇用数に加えて最大 GAP_HIRE_MAX 人を
+# 追加雇用し、水やり・雑草除去をリアクティブに実行させる (ルートのハンド位置
+# ドリフトで水やりが漏れた作物の枯死を防ぐ)
+GAP_HIRE_MAX = 2
 
 # 価格影響スコア用の市場パラメータ (kaggriculture.py の MARKET_PARAMS と同一)
 _PRICE_PARAMS = {
@@ -408,6 +302,14 @@ def build_plan(route, lookahead=LOOKAHEAD):
         "hire_target": [0] * 30,
         "uses_fertilizer": False,
     }
+    if M5_JIT_SEEDS:
+        plan["plants_jit"] = {c: _plants_window(route, c, SEED_LOOKAHEAD_JIT) for c in CROPS4}
+    plan["jit_seeds"] = M5_JIT_SEEDS
+    plan["feed_floor"] = M5_FEED_FLOOR
+    plan["offset"] = M5_OFFSET
+    plan["route_hires"] = M5_ROUTE_HIRES
+    plan["gap_late"] = M5_GAP_HIRE_LATE
+    plan["gap_max"] = GAP_HIRE_MAX
     for s, r in enumerate(route):
         day = s // 24
         for o in r.get("market", []):
@@ -422,14 +324,6 @@ def build_plan(route, lookahead=LOOKAHEAD):
                     plan["first_land_day"] = day
             elif op == "BUY_SEED" and o[1] in CROPS4 and plan["seed_first_day"][o[1]] is None:
                 plan["seed_first_day"][o[1]] = day
-    if M5_JIT_SEEDS:
-        plan["plants_jit"] = {c: _plants_window(route, c, SEED_LOOKAHEAD_JIT) for c in CROPS4}
-    plan["jit_seeds"] = M5_JIT_SEEDS
-    plan["feed_floor"] = M5_FEED_FLOOR
-    plan["offset"] = M5_OFFSET
-    plan["route_hires"] = M5_ROUTE_HIRES
-    plan["gap_late"] = M5_GAP_HIRE_LATE
-    plan["gap_max"] = GAP_HIRE_MAX
     # M5b: ルートの HIRE オーダーのステップ分布 (orig と同時刻に雇用するため)
     hire_orders = [0] * n
     for s, r in enumerate(route):
@@ -901,8 +795,8 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
                 money -= cost
     elif hour in (1, 2, 3) and day < len(plan["hire_target"]):
         n_today = farm.get("hires_today", 0)
-        cap = plan["hire_target"][day] - n_today + plan["gap_max"]
-        while cap > 0 and n_today < plan["hire_target"][day] + plan["gap_max"]:
+        cap = plan["hire_target"][day] - n_today + GAP_HIRE_MAX
+        while cap > 0 and n_today < plan["hire_target"][day] + GAP_HIRE_MAX:
             cost = _fib(n_today)
             if money < cost:
                 break
@@ -967,10 +861,10 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
     if plan["land_total"] > 0 and plan["first_land_day"] is not None:
         n_unlocked = len(farm.get("unlocked_quadrants", ["NW"])) - 1
         if n_unlocked < plan["land_total"] and day >= plan["first_land_day"] + n_unlocked * 5:
-            land_prices = [1000, 2000, 4000]
-            if money >= land_prices[n_unlocked] + LAND_BUFFER:
+            from kaggle_environments.envs.kaggriculture.kaggriculture import LAND_PRICES
+            if money >= LAND_PRICES[n_unlocked] + LAND_BUFFER:
                 market.append(["BUY_LAND"])
-                money -= land_prices[n_unlocked]
+                money -= LAND_PRICES[n_unlocked]
 
     # --- 肥料の仕入れ (ルートが肥料を使う場合。セットアップ期は資金を優先) ---
     if plan["uses_fertilizer"] and day >= 5 and shed.get("FERTILIZER", 0) < 2 and money >= FERT_BUFFER:
@@ -982,41 +876,39 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
     return _rank_sell_orders(obs, market) if RANK_SELL_ORDERS else market
 
 
+def make_adaptive_agent(route, lookahead=LOOKAHEAD):
+    plan = build_plan(route, lookahead)
 
-_ROUTE = json.loads(zlib.decompress(base64.b85decode(_ROUTE_B85)))
-_PLAN = build_plan(_ROUTE)
-
-
-def agent(obs):
-    try:
-        farms = obs.get("farms", [])
-        player = obs.get("player", 0)
-        private = obs.get("private", {}) or {}
-        if not farms or player >= len(farms):
+    def agent(obs):
+        try:
+            farms = obs.get("farms", [])
+            player = obs.get("player", 0)
+            private = obs.get("private", {}) or {}
+            if not farms or player >= len(farms):
+                return {"farmer": ["PASS"], "hands": [], "market": []}
+            farm = farms[player]
+            step = obs.get("step", obs.get("day", 0) * 24 + obs.get("hour", 0))
+            day = obs.get("day", 0)
+            hour = obs.get("hour", 0)
+            if step >= len(route):
+                return {"farmer": ["PASS"], "hands": [], "market": []}
+            # M5b: ルートの steps[k].action は obs[k-1] に応答した行動のため、
+            # obs[k] では route[k+1] を提出する (1ステップ遅れの修正)。
+            rs = min(step + 1, len(route) - 1) if plan.get("offset") else step
+            r = route[rs] if rs < len(route) else {"farmer": ["PASS"], "hands": []}
+            farmer = _repair(r.get("farmer", ["PASS"]), farm["farmer"], farm["tiles"])
+            actual_hands = farm.get("hands", [])
+            hands = []
+            for i, ha in enumerate(r.get("hands", [])):
+                if i >= len(actual_hands):
+                    break
+                hands.append(_repair(ha, actual_hands[i], farm["tiles"]))
+            # M3: ルート計画外の余剰ハンドはギャップフィラー
+            # (水やり/雑草優先、手が空いたら動物配置を補完)
+            while len(hands) < len(actual_hands):
+                hands.append(_reactive_hand_action(obs, farm, private, actual_hands[len(hands)], day, plan, step))
+            market = _reactive_market(obs, farm, private, plan, step, day, hour)
+            return {"farmer": farmer, "hands": hands, "market": market}
+        except Exception:
             return {"farmer": ["PASS"], "hands": [], "market": []}
-        farm = farms[player]
-        step = obs.get("step", obs.get("day", 0) * 24 + obs.get("hour", 0))
-        day = obs.get("day", 0)
-        hour = obs.get("hour", 0)
-        if step >= len(_ROUTE):
-            return {"farmer": ["PASS"], "hands": [], "market": []}
-        # M5b: ルートの steps[k].action は obs[k-1] に応答した行動のため、
-        # obs[k] では route[k+1] を提出する (1ステップ遅れの修正)。
-        rs = min(step + 1, len(_ROUTE) - 1) if _PLAN.get("offset") else step
-        r = _ROUTE[rs] if rs < len(_ROUTE) else {"farmer": ["PASS"], "hands": []}
-        farmer = _repair(r.get("farmer", ["PASS"]), farm["farmer"], farm["tiles"])
-        actual_hands = farm.get("hands", [])
-        hands = []
-        for i, ha in enumerate(r.get("hands", [])):
-            if i >= len(actual_hands):
-                break
-            hands.append(_repair(ha, actual_hands[i], farm["tiles"]))
-        while len(hands) < len(actual_hands):
-            hands.append(_reactive_hand_action(obs, farm, private, actual_hands[len(hands)], day, _PLAN, step))
-        market = _reactive_market(obs, farm, private, _PLAN, step, day, hour)
-        return {"farmer": farmer, "hands": hands, "market": market}
-    except Exception:
-        return {"farmer": ["PASS"], "hands": [], "market": []}
-
-
-adaptive_route_agent = agent
+    return agent
