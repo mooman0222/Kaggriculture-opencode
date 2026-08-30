@@ -39,6 +39,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--agent", required=True, help="評価するエージェントの .py")
     parser.add_argument("--replays", required=True, help="リプレイ JSON のあるディレクトリ")
+    parser.add_argument("--route", default=None, help="自分側のルート JSON (既定: ベストルート)")
     parser.add_argument("--games", type=int, default=3)
     parser.add_argument("--seed0", type=int, default=0)
     parser.add_argument("--own-team", default="MMN0222", help="自分側のチーム名 (スキップする)")
@@ -47,9 +48,17 @@ def main():
     root = Path(__file__).resolve().parent.parent
     mod = load_agent(Path(args.agent))
     adaptive = load_agent(root / "agents" / "adaptive_route.py")
-    our_route = json.load(open(root / ".opencode/data/route_itmoni_101730370_p0.json"))
+    if args.route:
+        our_route = json.load(open(args.route))
+    else:
+        # ベストルート (E018-M5d 以降は Subramanya 101692531 p0)
+        best = root / ".opencode/data/route_subramanya_101692531_p0.json"
+        if not best.exists():
+            best = root / ".opencode/data/route_itmoni_101730370_p0.json"
+        our_route = json.load(open(best))
 
     results = []
+    seen_farm = set()
     for f in sorted(Path(args.replays).glob("*.json")):
         r = json.load(open(f))
         teams = r.get("info", {}).get("TeamNames", ["?", "?"])
@@ -61,6 +70,15 @@ def main():
             route = extract_route(str(f), player=pi)
             if not route:
                 continue
+            # 農場アクションのみで重複判定 (市場オーダーはオーバーレイが上書きするため
+            # 同じプレイヤーの別ゲームで農場ルートが同一ならスキップ)
+            import hashlib
+            farm = [[x.get("farmer"), x.get("hands")] for x in route]
+            fh = hashlib.md5(json.dumps(farm, sort_keys=True).encode()).hexdigest()[:10]
+            if fh in seen_farm:
+                print(f"{f.name} p{pi} [{name}] skipped (duplicate farm route {fh})", flush=True)
+                continue
+            seen_farm.add(fh)
             opp = adaptive.make_adaptive_agent(route)
             total = 0.0
             total_opp = 0.0

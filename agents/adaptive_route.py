@@ -49,6 +49,40 @@ M5_OFFSET = True
 # ギャップフィラーはルート雇用が完了した後 (hour > その日の最終 HIRE hour) のみ。
 M5_ROUTE_HIRES = True
 M5_GAP_HIRE_LATE = True
+# M5e: ルートの BUY_ANIMAL を orig と同時刻に再現 (PICKUP 空振り防止)。
+M5_ROUTE_ANIMALS = False
+# M5f: ルートの小麦購入も orig と同時刻に再現 (給餌用小麦の枯渇防止)。
+# FEED_CASH_FLOOR は資金難期に購入を止めすぎ、19頭の給餌需要に追いつかず
+# GOOSE が脱走していた (orig は d7 に8個購入 vs 我々1個)。
+M5_ROUTE_WHEAT = False
+# M5h: 最終日 (d29) の小麦リザーブ解放 (当日給餌分のみ残して売却)
+M5_ENDGAME_LIQUIDATE = True
+# M5i: 価格暴落時は売却を控え、価格回復を待つ (実戦で WOOL が $1 まで暴落しても
+# 売り続けていた。town 需要で $144 まで回復するため、保有が大幅有利)。
+M5_PRICE_FLOOR = False
+SELL_PRICE_FLOOR_FRAC = 0.5
+# M6: 終盤イチゴ植え替え — ルートの PASS ターンを「その場の PLANT STRAWBERRY」に
+# 静的に書き換える (移動なし=位置ドリフトなし。種は JIT が自動購入)。
+# d14-18 に植えると d24-28 に収穫でき、ルート自体が終盤に畳むイチゴ畑を延長する
+# (E018-M5g の敗戦分析: 敵は終盤も15株維持し $16-18k 稼いだ)。
+M6_GAP_STRAWBERRY = False
+M6_GAP_STRAWBERRY_DAYS = (14, 18)
+M6_GAP_STRAWBERRY_MAX = 10
+# M6b: ルートの d15-17 の WHEAT PLANT を STRAWBERRY に置換 (同一ユニット・同一位置・
+# 同一タイミング)。ルート自身の水やり/施肥/収穫スケジュールがそのまま効くため
+# 専任プランター方式 (M6) と違い枯死しない。終盤 (d24-28) のイチゴ生産を延長する
+M6_SWAP_WHEAT = False
+M6_SWAP_DAYS = (15, 18)
+M6_SWAP_MAX = 12
+# M5k: 肥料の購入を止める (最大のボトルネック)。動物19頭から毎日無料で
+# 肥料が採れるのに、市場が「shed<2 なら常に買う」ため $100 で買って $60 で売る
+# 往復損失を 454個/試合 ($45.4k) も続けていた。ルート自身の計画でも購入ゼロ。
+M5_NO_FERT_BUY = True
+# M6d: ギャップフィラーは農場が大きい時期 (d5-24) のみ雇用。
+# 終盤 (d25-29) は作物が枯渇し水やり負荷が下がるため、fib(12)+fib(13)=$610/日の
+# フィラー2人は過剰 (ルート生成・労働効率化の第一歩)
+M6_GAP_WINDOW = True
+M6_GAP_WINDOW_DAYS = (3, 22)
 # M3: ギャップフィラーハンド。ルートの雇用数に加えて最大 GAP_HIRE_MAX 人を
 # 追加雇用し、水やり・雑草除去をリアクティブに実行させる (ルートのハンド位置
 # ドリフトで水やりが漏れた作物の枯死を防ぐ)
@@ -261,6 +295,119 @@ def _sim_positions(route, hire_target):
     return build_pos, plant_pos, build_events
 
 
+def _gap_strawberry_tile_ok(pos, s, plant_pos, build_pos):
+    x, y = pos
+    if not (0 <= x < 10 and 0 <= y < 10):
+        return False
+    if x in (4, 5) and y in (4, 5):
+        return False
+    if x >= 5 and y >= 5:
+        return False
+    if pos in plant_pos[s] or pos in build_pos[s]:
+        return False
+    return True
+
+
+def _rewrite_gap_strawberries(route):
+    """終盤の PASS を「その場の PLANT STRAWBERRY」に書き換える (M6)。
+
+    位置シミュレーション上で d14-18 の PASS を見つけ、そのタイルが
+    (a) ルートの今後48ステップの PLANT/BUILD 位置でない (b) shed 隣接でない
+    (c) SE 区画でない 場合に書き換える。PLANT は移動を伴わないため位置ドリフト
+    ゼロ。タイルが実際は占有されていても無音で失敗するだけ (安全)。
+    """
+    if not M6_GAP_STRAWBERRY:
+        return route
+    d0, d1 = M6_GAP_STRAWBERRY_DAYS
+    n = len(route)
+    hire = [0] * 30
+    for s, r in enumerate(route):
+        for o in r.get("market", []):
+            if o and o[0] == "HIRE":
+                hire[s // 24] += 1
+    build_pos, plant_pos, _ = _sim_positions(route, hire)
+    new_route = [
+        {
+            "farmer": list(r.get("farmer") or ["PASS"]),
+            "hands": [list(h) for h in r.get("hands", [])],
+            "market": r.get("market", []),
+        }
+        for r in route
+    ]
+    farmer = [4, 4]
+    hands = []
+    count = 0
+    for s in range(n):
+        hour = s % 24
+        day = s // 24
+        if hour == 0:
+            farmer = [4, 4]
+            hands = []
+        n_hands = hire[day]
+
+        def move(p, op):
+            dx, dy = _MOVE[op]
+            return [p[0] + dx, p[1] + dy]
+
+        fa = new_route[s]["farmer"]
+        if d0 <= day < d1 and fa[0] == "PASS" and count < M6_GAP_STRAWBERRY_MAX:
+            if _gap_strawberry_tile_ok(tuple(farmer), s, plant_pos, build_pos):
+                new_route[s]["farmer"] = ["PLANT", "STRAWBERRY"]
+                fa = new_route[s]["farmer"]
+                count += 1
+        if fa[0] in _MOVE:
+            farmer = move(farmer, fa[0])
+        acts = new_route[s]["hands"]
+        for i in range(min(len(acts), n_hands)):
+            while len(hands) <= i:
+                occ = {}
+                for p in _SHED_TILES:
+                    occ[p] = sum(1 for q in [farmer] + hands if tuple(q) == p)
+                hands.append(list(min(occ, key=lambda p: (occ[p], _SHED_TILES.index(p)))))
+            ha = acts[i]
+            if d0 <= day < d1 and ha[0] == "PASS" and count < M6_GAP_STRAWBERRY_MAX:
+                if _gap_strawberry_tile_ok(tuple(hands[i]), s, plant_pos, build_pos):
+                    new_route[s]["hands"][i] = ["PLANT", "STRAWBERRY"]
+                    ha = new_route[s]["hands"][i]
+                    count += 1
+            if ha[0] in _MOVE:
+                hands[i] = move(hands[i], ha[0])
+    return new_route
+
+
+def _rewrite_swap_wheat_strawberry(route):
+    """ルートの d15-17 の WHEAT PLANT を STRAWBERRY に置換 (M6b)。
+
+    同一ユニット・同一位置・同一ステップで作物だけ入れ替えるため、位置ドリフト
+    ゼロ。置換後のタイルはルート自身の水やりスケジュールで維持される。
+    """
+    if not M6_SWAP_WHEAT:
+        return route
+    d0, d1 = M6_SWAP_DAYS
+    new_route = [
+        {
+            "farmer": list(r.get("farmer") or ["PASS"]),
+            "hands": [list(h) for h in r.get("hands", [])],
+            "market": r.get("market", []),
+        }
+        for r in route
+    ]
+    count = 0
+    for s, r in enumerate(new_route):
+        day = s // 24
+        if not (d0 <= day < d1):
+            continue
+        fa = r["farmer"]
+        if count < M6_SWAP_MAX and fa[0] == "PLANT" and fa[1] == "WHEAT":
+            r["farmer"] = ["PLANT", "STRAWBERRY"]
+            count += 1
+        for i, h in enumerate(r["hands"]):
+            if count < M6_SWAP_MAX and h[0] == "PLANT" and h[1] == "WHEAT":
+                r["hands"][i] = ["PLANT", "STRAWBERRY"]
+                count += 1
+    return new_route
+
+
 def build_plan(route, lookahead=LOOKAHEAD):
     n = len(route)
     market_buys = {}
@@ -306,10 +453,13 @@ def build_plan(route, lookahead=LOOKAHEAD):
         plan["plants_jit"] = {c: _plants_window(route, c, SEED_LOOKAHEAD_JIT) for c in CROPS4}
     plan["jit_seeds"] = M5_JIT_SEEDS
     plan["feed_floor"] = M5_FEED_FLOOR
+    plan["feed_cash_floor"] = FEED_CASH_FLOOR
     plan["offset"] = M5_OFFSET
     plan["route_hires"] = M5_ROUTE_HIRES
     plan["gap_late"] = M5_GAP_HIRE_LATE
     plan["gap_max"] = GAP_HIRE_MAX
+    plan["route_animals"] = M5_ROUTE_ANIMALS
+    plan["n"] = n
     for s, r in enumerate(route):
         day = s // 24
         for o in r.get("market", []):
@@ -324,6 +474,12 @@ def build_plan(route, lookahead=LOOKAHEAD):
                     plan["first_land_day"] = day
             elif op == "BUY_SEED" and o[1] in CROPS4 and plan["seed_first_day"][o[1]] is None:
                 plan["seed_first_day"][o[1]] = day
+    # 一度も買われない作物は 99 (事実上無限) にする — None のままだと
+    # 市場ロジックの `day < seed_first_day` 比較が TypeError になり agent 全体が
+    # PASS フォールバックする (E018 強敵評価で Rocket Zech 等のルートが崩壊した原因)
+    for c in CROPS4:
+        if plan["seed_first_day"][c] is None:
+            plan["seed_first_day"][c] = 99
     # M5b: ルートの HIRE オーダーのステップ分布 (orig と同時刻に雇用するため)
     hire_orders = [0] * n
     for s, r in enumerate(route):
@@ -342,6 +498,30 @@ def build_plan(route, lookahead=LOOKAHEAD):
         for o in r.get("market", []):
             if o and o[0] == "HIRE":
                 plan["gap_hour"][s // 24] = s % 24
+    # M5e: ルートの BUY_ANIMAL オーダーのステップ分布 (orig と同じタイミングで
+    # 購入し、PICKUP に間に合わせる。first_step 順のペース購入では品目間の
+    # 優先が orig と逆転して PICKUP が空振りする — GOOSE の d6h3 PICKUP 等)
+    animal_buy_steps = {}
+    for s, r in enumerate(route):
+        for o in r.get("market", []):
+            if o and o[0] == "BUY_ANIMAL" and o[1] in ANIMAL_COST:
+                animal_buy_steps.setdefault(s, []).append((o[1], int(o[2]) if len(o) > 2 else 1))
+    plan["animal_buy_steps"] = animal_buy_steps
+    # M5f: ルートの小麦購入 (BUY_PRODUCT WHEAT) のステップ分布
+    wheat_buy_steps = {}
+    for s, r in enumerate(route):
+        for o in r.get("market", []):
+            if o and o[0] == "BUY_PRODUCT" and o[1] == "WHEAT":
+                wheat_buy_steps[s] = wheat_buy_steps.get(s, 0) + (int(o[2]) if len(o) > 2 else 1)
+    plan["wheat_buy_steps"] = wheat_buy_steps
+    plan["route_wheat"] = M5_ROUTE_WHEAT
+    plan["endgame_liquidate"] = M5_ENDGAME_LIQUIDATE
+    plan["price_floor"] = M5_PRICE_FLOOR
+    plan["m6_gap"] = M6_GAP_STRAWBERRY
+    plan["m6_swap"] = M6_SWAP_WHEAT
+    plan["no_fert_buy"] = M5_NO_FERT_BUY
+    plan["gap_window"] = M6_GAP_WINDOW
+    plan["gap_window_days"] = M6_GAP_WINDOW_DAYS
     build_pos, plant_pos, build_events = _sim_positions(route, plan["hire_target"])
     plan["build_pos"] = build_pos
     plan["plant_pos"] = plant_pos
@@ -591,7 +771,7 @@ def _reactive_animal_action(obs, farm, private, pos, plan, day):
     return ["PASS"]
 
 
-def _reactive_hand_action(obs, farm, private, pos, day, plan=None, step=0):
+def _reactive_hand_action(obs, farm, private, pos, day, plan=None, step=0, is_planter=False):
     """ギャップフィラーハンド: 水やり・雑草除去を最優先し、手が空いたら
     滞留動物の配置を補完する (ルートの PICKUP 完了後のみ — 干渉防止)。
 
@@ -604,6 +784,47 @@ def _reactive_hand_action(obs, farm, private, pos, day, plan=None, step=0):
     x, y = pos
     tile = tiles[y][x]
     inv = _inventory_of(private, farm, pos)
+    # M6: 植え付け専任ハンド — 水やりより植えを優先 (最後のギャップハンドのみ)。
+    if is_planter and plan and plan.get("m6_gap") and M6_GAP_STRAWBERRY_DAYS[0] <= day < M6_GAP_STRAWBERRY_DAYS[1] \
+            and _m6_gap_count(farm) < M6_GAP_STRAWBERRY_MAX:
+        # (1) ギャップイチゴの水やり最優先 (植えた当日に水をやらないと枯死する)
+        need = [(tx, ty) for ty in range(board) for tx in range(board)
+                if isinstance(tiles[ty][tx], dict)
+                and tiles[ty][tx].get("kind") == "PLANT"
+                and tiles[ty][tx].get("crop") == "STRAWBERRY"
+                and tiles[ty][tx].get("planted_day", 0) >= 14
+                and not tiles[ty][tx].get("watered_today")]
+        if need:
+            ux, uy = min(need, key=lambda p2: abs(x - p2[0]) + abs(y - p2[1]))
+            if (ux, uy) == (x, y):
+                return ["WATER"]
+            step_ = _step_toward(x, y, ux, uy)
+            if step_:
+                return [step_]
+        # (2) 新規植え
+        best = None
+        for ty in range(board):
+            for tx in range(board):
+                t = tiles[ty][tx]
+                if t is not None:
+                    continue
+                if tx in (4, 5) and ty in (4, 5):
+                    continue
+                if tx >= 5 and ty >= 5:
+                    continue
+                if plan and step < len(plan.get("plant_pos", [])):
+                    if (tx, ty) in plan["plant_pos"][step] or (tx, ty) in plan["build_pos"][step]:
+                        continue
+                d2 = abs(x - tx) + abs(y - ty)
+                if best is None or d2 < best[0]:
+                    best = (d2, tx, ty)
+        if best:
+            _, tx, ty = best
+            if (tx, ty) == (x, y):
+                return ["PLANT", "STRAWBERRY"]
+            step_ = _step_toward(x, y, tx, ty)
+            if step_:
+                return [step_]
     urgent = set()
     if plan and step < len(plan.get("build_pos", [])):
         urgent = plan["build_pos"][step] | plan["plant_pos"][step]
@@ -639,6 +860,34 @@ def _reactive_hand_action(obs, farm, private, pos, day, plan=None, step=0):
         step = _step_toward(x, y, best[3], best[4])
         if step:
             return [step]
+
+    # --- M6: ギャップイチゴ植え (水やり・雑草の次に優先。最寄りの空きタイルへ) ---
+    # リアクティブハンドは自由移動のため、ルートの位置スケジュールを壊さない。
+    if (plan and plan.get("m6_gap") and M6_GAP_STRAWBERRY_DAYS[0] <= day < M6_GAP_STRAWBERRY_DAYS[1]
+            and _m6_gap_count(farm) < M6_GAP_STRAWBERRY_MAX):
+        best = None
+        for ty in range(board):
+            for tx in range(board):
+                t = tiles[ty][tx]
+                if t is not None:
+                    continue
+                if tx in (4, 5) and ty in (4, 5):
+                    continue
+                if tx >= 5 and ty >= 5:
+                    continue
+                if plan and step < len(plan.get("plant_pos", [])):
+                    if (tx, ty) in plan["plant_pos"][step] or (tx, ty) in plan["build_pos"][step]:
+                        continue
+                d2 = abs(x - tx) + abs(y - ty)
+                if best is None or d2 < best[0]:
+                    best = (d2, tx, ty)
+        if best:
+            _, tx, ty = best
+            if (tx, ty) == (x, y):
+                return ["PLANT", "STRAWBERRY"]
+            step_ = _step_toward(x, y, tx, ty)
+            if step_:
+                return [step_]
 
     # --- 収穫 (水やり/雑草が済んだら。メロンはルートのタイミングに任せる) ---
     if isinstance(tile, dict) and tile.get("kind") == "PLANT":
@@ -750,15 +999,26 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
     market = []
 
     # --- 売却 (最優先) ---
+    # M5i: 暴落中の商品は保有して回復を待つ (最終日は強制売却)。
     for item in SELL_ORDER:
         n = shed.get(item, 0)
         if n <= 0:
             continue
+        if plan.get("price_floor") and day < 29 and item in _PRICE_PARAMS:
+            base = _PRICE_PARAMS[item]["base"]
+            if prices.get(item, base) < SELL_PRICE_FLOOR_FRAC * base:
+                continue
         if item == "WHEAT":
             # ルートのユニットが毎日10-36個を PICKUP するため、shed 在庫を
             # 残して売る (実在動物数のフィードも確保)。売りすぎない範囲で
             # d5-9 の資金源にする (雇用が止まると水やり崩壊で作物が枯れる)
-            reserve = max(6, n_animals * FEED_RESERVE_PER_ANIMAL)
+            # M5h: 最終日 (d29) は当日分の給餌だけ残して全て売却する。
+            # 未給餌は脱走 (2日連続) せず基本生産も入るため、CARE ボーナスと
+            # 当日卵の分だけ残せばよい (従来は 38 個が死蔵されていた = ~$1.5k)
+            if plan.get("endgame_liquidate") and day >= 29:
+                reserve = sum(placed.values())
+            else:
+                reserve = max(6, n_animals * FEED_RESERVE_PER_ANIMAL)
             n = max(0, n - reserve)
             if n <= 0:
                 continue
@@ -784,8 +1044,12 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
             market.append(["HIRE"])
             n_today += 1
             money -= cost
-        if plan.get("gap_late") and hour > plan["gap_hour"][day]:
+        if (plan.get("gap_late") and hour > plan["gap_hour"][day]
+                and (not plan.get("gap_window")
+                     or plan["gap_window_days"][0] <= day <= plan["gap_window_days"][1])):
             cap = plan["hire_target"][day] + plan["gap_max"]
+            if plan.get("m6_gap") and M6_GAP_STRAWBERRY_DAYS[0] <= day < M6_GAP_STRAWBERRY_DAYS[1]:
+                cap += 1
             while n_today < cap:
                 cost = _fib(n_today)
                 if money < cost:
@@ -809,8 +1073,20 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
     # ルートは一日中 PICKUP するため常時補充が必要) ---)
     # M5: 資金フロアを下回る間は購入を止める (収穫小麦に任せる)。元プレイヤーは
     # d4-6 の資金難期に小麦購入0で、購入は資金に余裕がある日に集中している。
+    # M5f: ルートの小麦購入オーダーを orig と同時刻に再現 (給餌需要 19個/日に
+    # 追いつかせ、GOOSE の脱走を防ぐ)。shed < 3 のときはフロア例外で枯渇防止。
     shed_wheat = shed.get("WHEAT", 0)
-    if shed_wheat < WHEAT_STOCK_TARGET and (not plan.get("feed_floor") or money >= FEED_CASH_FLOOR):
+    if plan.get("route_wheat") and "wheat_buy_steps" in plan:
+        n = plan.get("n", len(plan["plants"]["WHEAT"]))
+        rs = min(step + 1, n - 1)
+        qty = plan["wheat_buy_steps"].get(rs, 0)
+        if qty > 0:
+            wheat_price = prices.get("WHEAT", 25)
+            buy = min(qty, int(money) // max(1, wheat_price))
+            if buy > 0:
+                market.append(["BUY_PRODUCT", "WHEAT", buy])
+                money -= buy * wheat_price
+    if shed_wheat < WHEAT_STOCK_TARGET and (not plan.get("feed_floor") or money >= plan["feed_cash_floor"]):
         wheat_price = prices.get("WHEAT", 25)
         buy = min(WHEAT_STOCK_TARGET - shed_wheat, 4, int(money) // max(1, wheat_price))
         if buy > 0:
@@ -819,17 +1095,45 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
 
     # --- 動物購入 (ルート農場が必要とする品目。累積ペースで購入、種より優先:
     # 動物は日次ゲートで逃すと配置機会が失われる (E018-M3c の検証) ---)
+    # M5e: ルートの BUY_ANIMAL オーダーを orig と同じステップで再現する
+    # (first_step 順のペース購入は品目間の優先が orig と逆転し、GOOSE の
+    # d6h3 PICKUP 等が空振りして配置が 18/18 → 15/18 に落ちていた)。
+    # キャッチアップ (資金不足で逃した分) は hour>=12 に当日分のみ。
     if plan["animals"]:
-        for a in sorted(plan["animals"], key=lambda x: plan["animals"][x]["first_step"]):
-            d = plan["animals"][a]
-            if day < d["first_step"] // 24:
-                continue
-            need_by_today = plan["animal_cum"][a][day] if day < 30 else d["target"]
-            owned = shed.get(a, 0) + placed.get(a, 0) + sum(inv.get(a, 0) for inv in invs)
-            while owned < min(need_by_today, d["target"]) and money >= ANIMAL_COST[a] + ANIMAL_BUFFER:
-                market.append(["BUY_ANIMAL", a, 1])
-                owned += 1
-                money -= ANIMAL_COST[a]
+        n = plan.get("n", len(plan["plants"]["WHEAT"]))
+        if plan.get("route_animals") and "animal_buy_steps" in plan:
+            owned = {a: shed.get(a, 0) + placed.get(a, 0) + sum(inv.get(a, 0) for inv in invs)
+                     for a in plan["animals"]}
+            rs = min(step + 1, n - 1)
+            for a, qty in plan["animal_buy_steps"].get(rs, []):
+                d = plan["animals"][a]
+                while qty > 0 and owned.get(a, 0) < d["target"] and money >= ANIMAL_COST[a] + ANIMAL_BUFFER:
+                    market.append(["BUY_ANIMAL", a, 1])
+                    owned[a] = owned.get(a, 0) + 1
+                    qty -= 1
+                    money -= ANIMAL_COST[a]
+            if hour >= 12:
+                for a in sorted(plan["animals"], key=lambda x: plan["animals"][x]["first_step"]):
+                    d = plan["animals"][a]
+                    if day < d["first_step"] // 24:
+                        continue
+                    need_by_today = plan["animal_cum"][a][day] if day < 30 else d["target"]
+                    o = owned.get(a, 0)
+                    while o < min(need_by_today, d["target"]) and money >= ANIMAL_COST[a] + ANIMAL_BUFFER:
+                        market.append(["BUY_ANIMAL", a, 1])
+                        o += 1
+                        money -= ANIMAL_COST[a]
+        else:
+            for a in sorted(plan["animals"], key=lambda x: plan["animals"][x]["first_step"]):
+                d = plan["animals"][a]
+                if day < d["first_step"] // 24:
+                    continue
+                need_by_today = plan["animal_cum"][a][day] if day < 30 else d["target"]
+                owned = shed.get(a, 0) + placed.get(a, 0) + sum(inv.get(a, 0) for inv in invs)
+                while owned < min(need_by_today, d["target"]) and money >= ANIMAL_COST[a] + ANIMAL_BUFFER:
+                    market.append(["BUY_ANIMAL", a, 1])
+                    owned += 1
+                    money -= ANIMAL_COST[a]
 
     # --- 種の補充 (hour2 以降: hour0-1 の種購入が雇用資金を食い潰し、
     # ルートと雇用数がずれてハンドのスポーン位置がドリフトするのを防ぐ) ---
@@ -857,6 +1161,14 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
                 market.append(["BUY_SEED", crop, buy])
                 money -= buy * SEED_COST[crop]
 
+    # --- M6: ギャップイチゴの種の補充 (窓内で種2個未満なら1個買う) ---
+    if (plan.get("m6_gap") and M6_GAP_STRAWBERRY_DAYS[0] <= day < M6_GAP_STRAWBERRY_DAYS[1]
+            and seeds.get("STRAWBERRY", 0) < 2
+            and _m6_gap_count(farm) < M6_GAP_STRAWBERRY_MAX
+            and money >= SEED_COST["STRAWBERRY"] + 50):
+        market.append(["BUY_SEED", "STRAWBERRY", 1])
+        money -= SEED_COST["STRAWBERRY"]
+
     # --- 土地購入 (day5+ のタイミング、資金ゲート付き) ---
     if plan["land_total"] > 0 and plan["first_land_day"] is not None:
         n_unlocked = len(farm.get("unlocked_quadrants", ["NW"])) - 1
@@ -867,7 +1179,10 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
                 money -= LAND_PRICES[n_unlocked]
 
     # --- 肥料の仕入れ (ルートが肥料を使う場合。セットアップ期は資金を優先) ---
-    if plan["uses_fertilizer"] and day >= 5 and shed.get("FERTILIZER", 0) < 2 and money >= FERT_BUFFER:
+    # M5k: 購入停止 — 動物由来の肥料 (19個/日) でルートの施肥需要は賄える。
+    # 購入すると $100 で仕入れて $60 で売る往復損失になる (実測 $45.4k/試合)
+    if (not plan.get("no_fert_buy") and plan["uses_fertilizer"] and day >= 5
+            and shed.get("FERTILIZER", 0) < 2 and money >= FERT_BUFFER):
         market.append(["BUY_PRODUCT", "FERTILIZER", 1])
 
     # --- 10件制限のトリム + 売却順序の最適化 (価格影響の大きい売りを先に) ---
@@ -876,7 +1191,31 @@ def _reactive_market(obs, farm, private, plan, step, day, hour):
     return _rank_sell_orders(obs, market) if RANK_SELL_ORDERS else market
 
 
+def _m6_gap_count(farm):
+    return sum(1 for row in farm["tiles"] for t in row
+               if isinstance(t, dict) and t.get("kind") == "PLANT"
+               and t.get("crop") == "STRAWBERRY" and t.get("planted_day", 0) >= 14)
+
+
+def _m6_plant_override(pos, farm, plan, step):
+    """PASS の代わりにその場に PLANT STRAWBERRY (移動なし=ドリフトなし)。"""
+    x, y = pos
+    tile = farm["tiles"][y][x]
+    if tile is not None:
+        return None
+    if x in (4, 5) and y in (4, 5):
+        return None
+    if x >= 5 and y >= 5:
+        return None
+    if step < len(plan.get("plant_pos", [])):
+        if (x, y) in plan["plant_pos"][step] or (x, y) in plan["build_pos"][step]:
+            return None
+    return ["PLANT", "STRAWBERRY"]
+
+
 def make_adaptive_agent(route, lookahead=LOOKAHEAD):
+    if M6_SWAP_WHEAT:
+        route = _rewrite_swap_wheat_strawberry(route)
     plan = build_plan(route, lookahead)
 
     def agent(obs):
@@ -899,14 +1238,27 @@ def make_adaptive_agent(route, lookahead=LOOKAHEAD):
             farmer = _repair(r.get("farmer", ["PASS"]), farm["farmer"], farm["tiles"])
             actual_hands = farm.get("hands", [])
             hands = []
+            m6_day = M6_GAP_STRAWBERRY_DAYS
+            m6_active = (M6_GAP_STRAWBERRY and m6_day[0] <= day < m6_day[1]
+                         and _m6_gap_count(farm) < M6_GAP_STRAWBERRY_MAX)
+            if m6_active and farmer[0] == "PASS":
+                ov = _m6_plant_override(farm["farmer"], farm, plan, step)
+                if ov:
+                    farmer = ov
             for i, ha in enumerate(r.get("hands", [])):
                 if i >= len(actual_hands):
                     break
-                hands.append(_repair(ha, actual_hands[i], farm["tiles"]))
+                act = _repair(ha, actual_hands[i], farm["tiles"])
+                if m6_active and act[0] == "PASS":
+                    ov = _m6_plant_override(actual_hands[i], farm, plan, step)
+                    if ov:
+                        act = ov
+                hands.append(act)
             # M3: ルート計画外の余剰ハンドはギャップフィラー
             # (水やり/雑草優先、手が空いたら動物配置を補完)
             while len(hands) < len(actual_hands):
-                hands.append(_reactive_hand_action(obs, farm, private, actual_hands[len(hands)], day, plan, step))
+                is_last = len(hands) == len(actual_hands) - 1
+                hands.append(_reactive_hand_action(obs, farm, private, actual_hands[len(hands)], day, plan, step, is_planter=is_last))
             market = _reactive_market(obs, farm, private, plan, step, day, hour)
             return {"farmer": farmer, "hands": hands, "market": market}
         except Exception:

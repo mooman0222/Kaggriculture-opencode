@@ -26,8 +26,8 @@
   - 再ダウンロード用 submission ID: Crop Dusta=55829779 / William Diment=55814115 /
     ИТМОНИ=55793499 / Ryo Hasegawa=55614463 / Michael Timbs=55616096
   - 手順: `kaggle competitions episodes <sid>` → `kaggle competitions replay <episodeId> -p /tmp/opencode/topdata`
-- **ベストルート (永続化済み)**: .opencode/data/route_itmoni_101730370_p0.json (ИТМОНИ 101730370 p0。
-  main.py の _ROUTE_B85 からも復元可)
+- **ベストルート (永続化済み)**: .opencode/data/route_subramanya_101692531_p0.json (Subramanya 101692531 p0。
+  E018-M5d で ИТМОНИ から交代。旧ルートは route_itmoni_101730370_p0.json。main.py の _ROUTE_B85 からも復元可)
 - **評価の注意 (E018-M3)**: A/B は決定的相手 (base/starter) 必須。組み込み random は
   `random.Random()` 無シードで実行ごとに相手が変わり評価が汚染される
 
@@ -54,7 +54,8 @@ E016b の失敗 (品目ミスマッチ) を修正: ルートの農場スケジ�
 
 ### M3: 自前ルートの生成 — ✅ 到達 (avg $86.4k、プランナーは不要に)
 - ソース候補:
-  a. top5 のリプレイルート (9本) — 現行採用 (ИТМОНИ 101730370 p0、avg $86.4k vs base)
+  a. top5 のリプレイルート (9本) — 現行採用 (Subramanya 101692531 p0、avg $95.1k vs base。
+     E018-M5d で ИТМОНИ 101730370 p0 ($87.8k) から交代)
   b. リアクティブエージェント (main.py) の良いゲーム — 未検討
   c. 手書きの決定論的プランナー — **不要になった (E018-M5b)**: 滞留動物の真因は
     プランナー欠如ではなくルート再生の1ステップ遅れだった (M3b セッション2 参照)
