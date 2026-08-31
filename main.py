@@ -125,6 +125,12 @@ def _weed_repair_action(obs, action, step):
             act_dict.pop(a_key, None)
             continue
         time_diff = step - int(txn["start"])
+        if step // 24 != int(txn["start"]) // 24:
+            # E019c: 日境界を跨いだ復元は破棄 — ユニットは shed にリスポーン済みで
+            # 位置が無効になり、意図した PLANT/BUILD が誤タイルで実行されてしまう
+            # (hour23 の雑草ヒット時のみ発生するレアケース。15シードで発火0・A/B 同一)
+            act_dict.pop(a_key, None)
+            continue
         if time_diff == 1:
             u_acts[idx] = list(txn["intended"])
         elif 2 <= time_diff <= 1 + _WEED_REPLAY_STEPS:
