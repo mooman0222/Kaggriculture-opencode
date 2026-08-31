@@ -1,8 +1,11 @@
 # Kaggriculture ベースシステム
 
-[Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のベースエージェント。
-参考ノートブック [Kaggriculture: Getting Started](https://www.kaggle.com/code/bovard/kaggriculture-getting-started)
-の melon_maxxer を土台に、ローカル A/B テストで検証した改良を加えたもの。
+[Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
+現行の `main.py` (E019b) は公開ノートブック
+[salemali7/kaggriculture-2900](https://www.kaggle.com/code/salemali7/kaggriculture-2900)
+(HarvestForge-X、LB 上位 ~2800-3000 のクローン群の出どころ) を土台に、
+front-run の先読みを4ターンに拡張したクローン戦エッジを加えたもの。
+経緯・検証結果は `AGENTS.md` と `.opencode/knowledge/` を参照。
 
 ## ゲーム概要
 
@@ -16,10 +19,15 @@
 ## 構成
 
 ```
-main.py          提出用エージェント (main.py の agent 関数をそのまま提出)
-agents/base.py   ノートブックの melon_maxxer 原版 (ベースライン比較用)
-tests/run_match.py    1試合の実行と状態表示
-tests/evaluate.py     複数試合の勝率・平均所持金統計
+main.py                 提出用エージェント (agent 関数をそのまま提出。E019b)
+agents/base.py          melon_maxxer 原版 (ベースライン比較用)
+agents/e018_route.py    旧主力 E018 (ルート再生型、A/B の中堅相手用)
+agents/adaptive_route.py  E018 系ツールのエージェント工場 (make_adaptive_agent)
+tests/run_match.py      1試合の実行と状態表示
+tests/evaluate.py       複数試合の勝率・平均所持金統計
+tests/ab.py             同一シード・同一相手での A/B 比較
+tests/route_gen.py ほか  E018 系のルート抽出・評価ツール (遺産)
+.opencode/knowledge/    実験ログ・知見・メタ情報のナレッジベース
 requirements.txt
 ```
 
@@ -50,7 +58,7 @@ python tests/evaluate.py --games 20 --opponent base
 Kaggle CLI をセットアップ後 (`pip install kaggle`, API トークン設定):
 
 ```bash
-kaggle competitions submit kaggriculture -f main.py -m "melon v1"
+kaggle competitions submit kaggriculture -f main.py -m "E019b ..."
 ```
 
 またはノートブック上で main.py をアップロードして提出。
