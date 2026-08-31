@@ -1,5 +1,9 @@
 # 上位5チーム・9ゲームの戦略シグネチャ分析
 
+> ⚠️ **旧メタ (2026-08-31 注記)**: この分析は 2026-08-28 時点のメタ。
+> 8/29 公開の HarvestForge-X (salemali7/kaggriculture-2900) が3日で LB 上位を
+> 塗り替え、現行メタは refs/clone-meta-2026-08-31.md を参照。
+
 分析日: 2026-08-28
 データ: 上位提出 (Crop Dusta 55829779 / William Diment 55814115 / ИТМОНИ 55793499 /
 Ryo Hasegawa 55614463 / Michael Timbs 55616096 / Subramanya N) の公開エピソード9件

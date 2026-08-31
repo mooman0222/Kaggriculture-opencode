@@ -98,20 +98,20 @@ K スイープ: K=2 +$4.6k / **K=4 +$5.1k (採用)** / K=8 +$3.9k。
 **E018-M7 (2026-08-31): 農場側の追加介入は「移動なしの PASS→WATER/CARE 置換」ですら
 -$643、イチゴ植え直し (11,15) は -$8.6k。給水ガード案 (+$15-20k 見込み) は根拠喪失**
 
-### 実装上の注意 (E018 系)
+### 実装上の注意 (E019 系)
 
-- **A/B テストはフラグを plan に焼き込むこと**: `adaptive_route.py` のモジュール定数
-  (GAP_HIRE_MAX, M5_*) は `build_plan` 実行時に plan へコピーされ、以降は plan を参照。
-  実行中にモジュール定数を書き換えると既存エージェントの挙動まで変わり A/B が汚染される
-  (E018-M5b で実際に踏んだ罠)
-- **ルート由来の日付・数量は「無し」を None のままにしない** (E018-M5d): `day < None` の
-  TypeError が try/except に飲まれて agent 全体が PASS に落ちる
-- 評価は決定的相手 (base/starter) 必須。組み込み random は無シードで実行ごとに相手が変わり
-  評価が汚染される (E018-M3)。**seeds 0-14 で評価** (seeds 100-104 は不利なシード帯、E018-M4a)
-- 資産: ベストルート = `.opencode/data/route_subramanya_101692531_p0.json` (永続化済み、
-  main.py の `_ROUTE_B85` からも復元可。旧 ИТМОНИ ルートは route_itmoni_101730370_p0.json)。
-  強敵プール = /tmp/opencode/topdata (top5リプレイ8本) + /tmp/opencode/lbdata (自チーム実戦9本)
-- main.py と agents/adaptive_route.py は同じロジックのコピー。**修正は両方に反映すること**
+- **農場側 (固定720手) への介入は禁止水域** (E018-M7 / M4b / M6 / M6b が全て悪化)。
+  安全な改善は市場側オーバーレイのみ。A/B は変種ファイルを生成して ab.py で比較する
+- 評価は決定的相手 (base) 必須。組み込み random は無シードで評価が汚染される (E018-M3)。
+  **クローン戦の判定は両席ペア margin の正シード率** (片席だけでは席バイアスが乗る)
+- 検証3点セット: (1) vs base (劣化확認) (2) vs 素HF/e018 の H2H (3) 自分同士ミラー (自壊確認)。
+  提出前に self-match (debug=True) で両者 DONE を確認する (検証エピソード対策)
+- 資産: 旧 E018 実装 = `agents/e018_route.py` (A/B 相手用)。素の HF との比較は
+  git 履歴 (E019 コミット時点の main.py) か変種生成スクリプトから復元。
+  旧ルート JSON (.opencode/data/) は E018 系ツール (eval_routes/strong_eval) 専用の遺産
+- 旧 E018 の注意書き (plan 焼き込み・None 罠・adaptive_route 同期) は
+  agents/e018_route.py と adaptive_route.py を触るときのみ有効 — git 履歴の
+  本セクション旧版を参照
 
 ## 自己改善ループ
 
