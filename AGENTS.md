@@ -91,16 +91,26 @@ the-soil-remembers-rain (ショップ抽選適応型アンサンブル、day3 �
 **提出: 55907164 (frontier 素のまま、メタヘッジ)** + 55905717 (E019b K4) の2枚体制。
 frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを展開、無改変)。
 
+### E020b/c (2026-08-31): frontier への K4 移植と kaito 分岐の調査
+
+- **E020b (採用・提出 55907271)**: frontier 内蔵 V174 (HF 同系統・due_step 方式) に
+  main.py と同一の K4 デット式パッチを適用しペイロード再パック (scratchpad の
+  make_frontier_k4.py 参照、成果物 = agents/frontier_k4.py)。素 frontier に
+  **21勝11分0敗 (+$1.8k/ペア、負けシードゼロ)**。+$0 は kaito 分岐の試合
+- **E020c (棄却)**: kaito v48 内蔵 clone_preempt_horizon 2→4 はペア -$3.0k で事故。
+  **kaito 分岐は素のまま維持**。副産物: C6S9 = kaito v48 と同定 (構成はシード適応)
+- 現行スロット: frontier_K4 (55907271) + frontier 素 (55907164)。E019b は 1432.6 で退役
+
 ### 次のステップ
 
-1. **E020b: FR デット式エッジの frontier 移植 (最優先)**: frontier もアンサンブル内は
-   固定計画のはず。HF でやった「相手の売却計画への1-4ターン先行」を frontier の
-   market 出力に被せれば、frontier クローン帯を総なめにできる。まず frontier の
-   V174/KAITO 内部構造 (トレースの有無) を調査
-2. **LB 経過観察**: 55907164 (frontier) と 55905717 (E019b、~1425) の収束を比較。
-   60試合待って判定 (残り提出 2回/日)
-3. **C10S4 の出どころ調査 (中)**: 3チームが運用、素HFに3戦全勝。新しい公開 NB か
-   kaito v48 の可能性 — kernels list の新着を確認
+1. **LB 収束確認**: frontier 系2枚が ~60試合に達した時点で E019b の 1432.6 と比較。
+   frontier_K4 > frontier 素 > 1432 なら計画どおり
+2. **frontier_K4 の実戦リプレイ解析**: 新たな敗因クラスの探索 (E020 と同じ手法:
+   fetch_battles.py → 敗戦の品目分解は「提出注文は不執行スパムで過大」に注意)
+3. **メタ監視 (週1-2回)**: kernels list 新着 + 上位シグネチャ。上位は kaito v48 /
+   frontier ファミリーに収束中 — 次の公開メタへの即応が最終順位を決める
+4. **提出運用**: 締切 9/30、最終評価は締切後 ~2週間の Bradley-Terry。締切時点で
+   「エラーの出ない最強2つ」をスロットに置くことが全て
 
 **検証済みの失敗 (再試行しない)**: フルリアクティブ / ファーマー置換 / PASS 介入
 (E018-M4b)。ルート再生のステップずれ対策は M5_OFFSET (route[step+1]) が正解で、

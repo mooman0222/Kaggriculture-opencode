@@ -1,10 +1,11 @@
 # Kaggriculture ベースシステム
 
 [Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
-現行の `main.py` (E019b) は公開ノートブック
-[salemali7/kaggriculture-2900](https://www.kaggle.com/code/salemali7/kaggriculture-2900)
-(HarvestForge-X、LB 上位 ~2800-3000 のクローン群の出どころ) を土台に、
-front-run の先読みを4ターンに拡張したクローン戦エッジを加えたもの。
+**現行の提出は `agents/frontier_k4.py` (E020b)** — 公開ノートブック
+prvsiyan/kaggriculture-frontier-the-soil-remembers-rain (ショップ抽選適応型アンサンブル、
+day3 の初ショップで農場計画を分岐) の内蔵 V174 に、K=4 デット式 front-run
+(クローン戦エッジ) を移植したもの。`main.py` は前世代 E019b (HarvestForge-X + K4、
+[salemali7/kaggriculture-2900](https://www.kaggle.com/code/salemali7/kaggriculture-2900) ベース)。
 経緯・検証結果は `AGENTS.md` と `.opencode/knowledge/` を参照。
 
 ## ゲーム概要
@@ -19,7 +20,9 @@ front-run の先読みを4ターンに拡張したクローン戦エッジを加
 ## 構成
 
 ```
-main.py                 提出用エージェント (agent 関数をそのまま提出。E019b)
+agents/frontier_k4.py   現行提出 (E020b: frontier + K4 デット式 front-run 移植)
+agents/frontier_prvsiyan.py  frontier 原本 (公開NBペイロード展開・無改変、メタヘッジ提出)
+main.py                 前世代 E019b (HarvestForge-X + K4。A/B の強相手用)
 agents/base.py          melon_maxxer 原版 (ベースライン比較用)
 agents/e018_route.py    旧主力 E018 (ルート再生型、A/B の中堅相手用)
 agents/adaptive_route.py  E018 系ツールのエージェント工場 (make_adaptive_agent)

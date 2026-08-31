@@ -1,6 +1,6 @@
 # Meta (コンペ状況・メタ情報)
 
-最終更新: 2026-08-31 (E019/E019b: HarvestForge-X 採用とクローン戦エッジ)
+最終更新: 2026-08-31 夕 (E020a-c: frontier ファミリーへの移行)
 
 ## スコアリング (評価ページより)
 
@@ -45,17 +45,19 @@
 - メタの回転は速い: 8/28 時点の top5 メタ (refs/top5-meta-analysis.md) は3日で
   HF クローンに塗り替えられた。**週1-2回の新規人気ノートブック確認が必須**
 
-## 私たちの提出状況 (2026-08-31 時点)
+## 私たちの提出状況 (2026-08-31 夕時点)
 
-- **有効スロット**: ref 55905222 (E019 素の HF、**提出30分で 1021.3**・上昇中) +
-  ref 55905717 (E019b 4ターン front-run、PENDING)。旧 E018 (753.8) は退役
-- 主力アーキテクチャ (E019): **HarvestForge-X** = 固定720手 (_ACTIONS) + 雑草修復
-  (意図復元) + プレミアム4品目 front-run。E019b で front-run 先読みを 1→4ターン化
-  (素 HF に 19勝1敗・ペア margin +$5.1k)
-- 提出履歴: 402.2 → 347.6 → 475.8 → 500.1 → 604.0 (E018-M1) → 583.3 → 693.4→630.1 →
-  750.7→684.0 → 737.7 → 753.8 (E018 最終) → **1021.3+ (E019)** → E019b (検証中)
-- 旧 E018 の教訓: ルート型の天井 $85-105k はプール中央で勝率48%止まり。
-  **vs base の優位は LB に反映されない** (E018-M6f)
+- **有効スロット**: ref 55907271 (**frontier_K4** = frontier + K4 デット式移植、
+  agents/frontier_k4.py) + ref 55907164 (frontier 素、agents/frontier_prvsiyan.py)。
+  E019b (HF+K4) は ~50試合 1432.6 で退役
+- 主力 (E020b): **frontier アンサンブル + v174 分岐への K4 デット式 front-run 移植**。
+  素 frontier に 21勝11分0敗 (+$1.8k/ペア)、素 frontier は旧 HF+K4 に +$10.6k/ペア
+- 提出履歴 (レーティングは退役時点の値): E018 最終 753.8 → E019 素HF 1353 →
+  **E019b HF+K4 1432.6 (~50試合)** → E020a frontier 素 / E020b frontier_K4 (収束中)。
+  レーティング比較は同一試合数でのみ行うこと
+- 旧世代の教訓: E018 ルート型は天井 $85-105k で勝率48%止まり (vs base の優位は
+  LB に反映されない、E018-M6f)。HF 系 ($158k) は kaito v48/frontier 系 ($169-171k)
+  に生産力で抜かれた (E020)
 - 実戦リプレイの取得手順: 自提出は `kaggle competitions episodes <SUBMISSION_ID>` →
   `kaggle competitions replay <EPISODE_ID>`。他チームは teamId → kagglesdk の
   ApiListTeamPublicSubmissionsRequest で submission_id を引く (E019 の手法、
