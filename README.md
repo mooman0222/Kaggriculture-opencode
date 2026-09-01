@@ -1,11 +1,10 @@
 # Kaggriculture ベースシステム
 
 [Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
-**現行の提出は `agents/frontier_k4.py` (E020b)** — 公開ノートブック
-prvsiyan/kaggriculture-frontier-the-soil-remembers-rain (ショップ抽選適応型アンサンブル、
-day3 の初ショップで農場計画を分岐) の内蔵 V174 に、K=4 デット式 front-run
-(クローン戦エッジ) を移植したもの。`main.py` は前世代 E019b (HarvestForge-X + K4、
-[salemali7/kaggriculture-2900](https://www.kaggle.com/code/salemali7/kaggriculture-2900) ベース)。
+**現行の提出は `agents/kaito_v56_orak16.py` (E024)** — 公開ノートブック
+kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
+マルチホライズン・セルフオラクル front-run (K=16) と終局スイープを載せたもの。
+旧世代: `agents/frontier_*` (E020)、`main.py` (E019b HarvestForge-X + K4)。
 経緯・検証結果は `AGENTS.md` と `.opencode/knowledge/` を参照。
 
 ## ゲーム概要
@@ -20,7 +19,9 @@ day3 の初ショップで農場計画を分岐) の内蔵 V174 に、K=4 デッ
 ## 構成
 
 ```
-agents/frontier_k4.py   現行提出 (E020b: frontier + K4 デット式 front-run 移植)
+agents/kaito_v56_orak16.py  現行提出 (E024: v56 + K16 セルフオラクル + sweep)
+agents/kaito_v56_*.py   v56 系の各段階 (素/sweep/oracle/orak12)
+agents/frontier_k4.py   旧提出 (E020b: frontier + K4 デット式 front-run 移植)
 agents/frontier_prvsiyan.py  frontier 原本 (公開NBペイロード展開・無改変、メタヘッジ提出)
 main.py                 前世代 E019b (HarvestForge-X + K4。A/B の強相手用)
 agents/base.py          melon_maxxer 原版 (ベースライン比較用)

@@ -1,6 +1,6 @@
 # Meta (コンペ状況・メタ情報)
 
-最終更新: 2026-08-31 夕 (E020a-c: frontier ファミリーへの移行)
+最終更新: 2026-09-01 (E021-E027: kaito v56 世代 + K16 セルフオラクル)
 
 ## スコアリング (評価ページより)
 
@@ -45,23 +45,17 @@
 - メタの回転は速い: 8/28 時点の top5 メタ (refs/top5-meta-analysis.md) は3日で
   HF クローンに塗り替えられた。**週1-2回の新規人気ノートブック確認が必須**
 
-## 私たちの提出状況 (2026-08-31 夕時点)
+## 私たちの提出状況 (2026-09-01 時点)
 
-- **有効スロット**: ref 55907271 (**frontier_K4** = frontier + K4 デット式移植、
-  agents/frontier_k4.py) + ref 55907164 (frontier 素、agents/frontier_prvsiyan.py)。
-  E019b (HF+K4) は ~50試合 1432.6 で退役
-- 主力 (E020b): **frontier アンサンブル + v174 分岐への K4 デット式 front-run 移植**。
-  素 frontier に 21勝11分0敗 (+$1.8k/ペア)、素 frontier は旧 HF+K4 に +$10.6k/ペア
-- 提出履歴 (レーティングは退役時点の値): E018 最終 753.8 → E019 素HF 1353 →
-  **E019b HF+K4 1432.6 (~50試合)** → E020a frontier 素 / E020b frontier_K4 (収束中)。
-  レーティング比較は同一試合数でのみ行うこと
-- 旧世代の教訓: E018 ルート型は天井 $85-105k で勝率48%止まり (vs base の優位は
-  LB に反映されない、E018-M6f)。HF 系 ($158k) は kaito v48/frontier 系 ($169-171k)
-  に生産力で抜かれた (E020)
-- 実戦リプレイの取得手順: 自提出は `kaggle competitions episodes <SUBMISSION_ID>` →
-  `kaggle competitions replay <EPISODE_ID>`。他チームは teamId → kagglesdk の
-  ApiListTeamPublicSubmissionsRequest で submission_id を引く (E019 の手法、
-  refs/clone-meta-2026-08-31.md 参照)。リプレイ本体 (~31MB/本) はリポジトリに置かない
+- **有効スロット**: ref 55934144 (**orak16** = v56 + K16 セルフオラクル + sweep、
+  agents/kaito_v56_orak16.py、収束中) + ref 55930089 (orak12、2219+)
+- 主力 (E021-E024): **kaito v56 コア + マルチホライズン・セルフオラクル (K=16) +
+  終局スイープ (d29h18+)**。支配連鎖 K16 > K12 > K8 > K4 > K1 > 素v56 (全段 20勝0敗)
+- 世代の系譜 (退役時スコア): E018 ルート再生 753.8 → E019b HF+K4 1432.6 →
+  E020b frontier+K4 1955.6 → E022c orak12 2219+ → **E024 orak16 (現行)**
+- 教訓 (負の資産、詳細 experiments.md E023-E027): 保持戦略は経済を壊す /
+  農場介入が安全なのは d29 終盤のみ / 第2階オラクルは双子対称性で不成立 /
+  ルート編集は v51 エンジンでも不可 / 現有艦隊にクラス別ルーターの出番なし
 
 ## コミュニティの強エージェント
 
