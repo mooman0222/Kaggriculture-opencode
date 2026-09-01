@@ -34,16 +34,15 @@
   **ショップ抽選 (羊毛)**: YARN_STORE が引けないゲームでは羊毛が $1 に暴落し
   ±$15-20k のスイング (vs base でも同様の抽選があり、シード間の分散の主因)
 
-## リーダーボード観測 (2026-08-31 時点)
+## リーダーボード観測 (2026-09-01 時点)
 
-- トップ: 3025.7 (Milan Leonard)。上位 ~20 は 2722-3025
-- 参加チーム: ~7000
-- **上位 ~2800-3000 は公開ノートブック salemali7/kaggriculture-2900 (HarvestForge-X)
-  のクローン群** (E019 で上位8チームの同一シグネチャを確認: 牛8-9+羊4-5・イチゴ種44・
-  小麦種187・メロン12・雇用290人日・ガチョウ0)。詳細は refs/clone-meta-2026-08-31.md
-- 例外: Subramanya N (2831) は羊15+牛2 の非クローン型
-- メタの回転は速い: 8/28 時点の top5 メタ (refs/top5-meta-analysis.md) は3日で
-  HF クローンに塗り替えられた。**週1-2回の新規人気ノートブック確認が必須**
+- トップ: 2939 (tetsuya)。上位10は 2780-2940 で、**非推移的な3すくみ**
+  (tetsuya > Driz Lo > Crop Dusta > tetsuya のサイクル実在、refs/top10-survey-2026-09-01.md):
+  A プレミアム先行型 (tetsuya/Subramanya) / B 小麦ボリューム型 (Crop Dusta/yukino) /
+  C v56系バランス型 (QQ Farming/OceanMix ほか過半)
+- 2800 未満の大衆帯は kaito v56 系のクローン・変種が主流
+- メタの回転は速い (HF は公開3日で LB を塗り替えられ、その後 frontier → v56 と交代)。
+  **週1-2回の新規ノートブック確認が必須** — 旧観測は refs/clone-meta-2026-08-31.md
 
 ## 私たちの提出状況 (2026-09-01 時点)
 
@@ -57,13 +56,14 @@
   農場介入が安全なのは d29 終盤のみ / 第2階オラクルは双子対称性で不成立 /
   ルート編集は v51 エンジンでも不可 / 現有艦隊にクラス別ルーターの出番なし
 
-## コミュニティの強エージェント
+## コミュニティの強エージェント (世代順)
 
-- **HarvestForge-X (salemali7/kaggriculture-2900、2026-08-29 公開)** — 現行メタ。
-  main.py に採用済み (E019)。vs base $153-158k
-- 旧メタ (2026-08-28 時点、現在は上位から後退): Kaito V27 (9COW+4SHEEP、mirror $47.7k)、
-  boatlee v16 (8COW+4SHEEP+フロントラン、Kaito に24戦全勝 — HF の前身で front-run の出典)、
-  Crop Dusta (小麦ボリューム型)。分析は refs/ に保存 (旧メタのスナップショットとして有効)
+- **kaito v56 (kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid) — 現行メタ**。
+  orak16 のコアに採用済み (E021)。v51 ポリシーエンジン (ルート=提案事前分布+
+  ランタイム市場制御) + BACKBONE/YARN 2ルートの初ショップ切替
+- 旧世代 (すべてコード確保済み・agents/ に保存): frontier (prvsiyan、ショップ適応
+  アンサンブル = V174+kaito v48) → HarvestForge-X (salemali7/kaggriculture-2900) →
+  boatlee v16 / Kaito v27 (分析のみ)。kaito は 2-3日周期で新版を出す — v57+ を監視
 
 ## 提出システム
 
