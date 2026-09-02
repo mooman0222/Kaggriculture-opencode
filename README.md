@@ -21,6 +21,7 @@ kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
 
 ```
 agents/kaito_v56_orak16.py  現行提出 (E029: v56 + K16 セルフオラクル + sweep + ヤーン遅延切替)
+agents/kaito_v56_orak12_yarn.py  E029b (同上の K=12 版、2軸提出)
 agents/kaito_v56_*.py   v56 系の各段階 (素/sweep/oracle/orak12)
 agents/frontier_k4.py   旧提出 (E020b: frontier + K4 デット式 front-run 移植)
 agents/frontier_prvsiyan.py  frontier 原本 (公開NBペイロード展開・無改変、メタヘッジ提出)
