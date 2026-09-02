@@ -1,9 +1,10 @@
 # Kaggriculture ベースシステム
 
 [Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
-**現行の提出は `agents/kaito_v56_orak16.py` (E024)** — 公開ノートブック
+**現行の提出は `agents/kaito_v56_orak16.py` (E029)** — 公開ノートブック
 kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
-マルチホライズン・セルフオラクル front-run (K=16) と終局スイープを載せたもの。
+マルチホライズン・セルフオラクル front-run (K=16)、終局スイープ、ヤーンルート遅延切替
+(2-3軒目が YARN_STORE なら step144/216 で切替) を載せたもの。
 旧世代: `agents/frontier_*` (E020)、`main.py` (E019b HarvestForge-X + K4)。
 経緯・検証結果は `AGENTS.md` と `.opencode/knowledge/` を参照。
 
@@ -19,7 +20,7 @@ kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
 ## 構成
 
 ```
-agents/kaito_v56_orak16.py  現行提出 (E024: v56 + K16 セルフオラクル + sweep)
+agents/kaito_v56_orak16.py  現行提出 (E029: v56 + K16 セルフオラクル + sweep + ヤーン遅延切替)
 agents/kaito_v56_*.py   v56 系の各段階 (素/sweep/oracle/orak12)
 agents/frontier_k4.py   旧提出 (E020b: frontier + K4 デット式 front-run 移植)
 agents/frontier_prvsiyan.py  frontier 原本 (公開NBペイロード展開・無改変、メタヘッジ提出)
@@ -27,6 +28,8 @@ main.py                 前世代 E019b (HarvestForge-X + K4。A/B の強相手�
 agents/base.py          melon_maxxer 原版 (ベースライン比較用)
 agents/e018_route.py    旧主力 E018 (ルート再生型、A/B の中堅相手用)
 agents/adaptive_route.py  E018 系ツールのエージェント工場 (make_adaptive_agent)
+tests/fetch_battles.py  実戦リプレイを相手系統 (24手署名/動物構成) 別に集計
+tests/h2h.py            2エージェントの同シード両席直接対決 (ペア margin + ショップ列)
 tests/run_match.py      1試合の実行と状態表示
 tests/evaluate.py       複数試合の勝率・平均所持金統計
 tests/ab.py             同一シード・同一相手での A/B 比較

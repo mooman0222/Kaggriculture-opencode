@@ -2291,6 +2291,21 @@ def _v56_first_shop(obs):
     return str(shops[0]) if shops else ""
 
 
+# E029: 実戦で我々を破る v56 変種は「2軒目が YARN_STORE なら step144 でヤーンルートへ切替」。
+# 両コントローラを常時前進させ、切替条件はいつでも評価できるようにする。
+_V56_SECOND_SHOP_SWITCH = frozenset(('YARN_STORE',))
+
+
+def _v56_use_yarn(obs):
+    town = (obs or {}).get("town", {}) or {}
+    shops = [str(x) for x in (town.get("unlocked_shops", []) or [])]
+    if not shops:
+        return False
+    if shops[0] in _V56_CONTINUATION_SHOPS:
+        return True
+    return any(s in _V56_SECOND_SHOP_SWITCH for s in shops[1:3])
+
+
 def agent(obs, configuration=None):
     """Route only on the first publicly revealed shop.
 
@@ -2300,13 +2315,12 @@ def agent(obs, configuration=None):
     try:
         visible = _v56_visible_configuration(configuration)
         step = int((obs or {}).get("step", 0) or 0)
-        if step < 72:
-            default_action = _V56_BACKBONE_POLICY(obs, visible)
-            _V56_YARN_POLICY(obs, visible)
-            return default_action
-        if _v56_first_shop(obs) in _V56_CONTINUATION_SHOPS:
+        if _v56_use_yarn(obs):
+            _V56_BACKBONE_POLICY(obs, visible)
             return _V56_YARN_POLICY(obs, visible)
-        return _V56_BACKBONE_POLICY(obs, visible)
+        default_action = _V56_BACKBONE_POLICY(obs, visible)
+        _V56_YARN_POLICY(obs, visible)
+        return default_action
     except Exception:
         return _v51_safe_action(obs)
 
@@ -2396,9 +2410,17 @@ def _sweep(action, obs):
             if mv:
                 acts[i] = mv
 
+    # E028: 同ステップの DROP は市場処理より先に shed へ入る (engine: 物理→市場)。
+    # DROP する unit の手持ちも投影して売る。超過注文は失敗するだけで無害。
+    proj = {item: int(shed.get(item, 0) or 0) for item in _SWEEP_PRODUCTS}
+    for i, a in enumerate(acts):
+        if a and a[0] == "DROP" and i < len(invs):
+            for item in _SWEEP_PRODUCTS:
+                proj[item] += int((invs[i] or {}).get(item, 0) or 0)
+
     market = [list(o) for o in (action.get("market") or [])]
     for item in _SWEEP_PRODUCTS:
-        n = int(shed.get(item, 0) or 0)
+        n = proj[item]
         if n <= 0:
             continue
         covered = sum(int(o[2]) for o in market
@@ -2461,13 +2483,12 @@ def _orak_phantom(obs, visible, idx):
     pobs["step"] = step
     pobs["hour"] = step % 24
     pobs["day"] = step // 24
-    if step < 72:
-        d = _ORAK_BB[idx](pobs, visible)
-        _ORAK_YARN[idx](pobs, visible)
-        return d
-    if _v56_first_shop(pobs) in _V56_CONTINUATION_SHOPS:
+    if _v56_use_yarn(pobs):
+        _ORAK_BB[idx](pobs, visible)
         return _ORAK_YARN[idx](pobs, visible)
-    return _ORAK_BB[idx](pobs, visible)
+    d = _ORAK_BB[idx](pobs, visible)
+    _ORAK_YARN[idx](pobs, visible)
+    return d
 
 
 def _orak_town_demand(obs, item, step):
