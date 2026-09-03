@@ -2570,6 +2570,45 @@ def _orak_front_run(action, obs, preds):
 
 _pre_orak_agent = agent
 
+# ===== E031: テープオラクル ==================================================
+# 2600-2800 帯の相手の 1/3 は yhay81 Three-Day Shop Router のテープ (開幕 53/48 買い占め、
+# 公開位置は決定論的、市場行動は 719 手中 659-718 手が一致)。公開位置で識別し、
+# 既知の売却予定 (プレミアム4品目) を K_T 手先まで先回りする (E019b の固定トレース先読みと同型)。
+_TAPE_K = 4
+_TAPE_POS = {3: [[4, 4], [[4, 4], [5, 4], [4, 4], [4, 5], [4, 4]]], 4: [[4, 4], [[4, 3], [5, 4], [4, 3], [3, 5], [4, 4]]], 5: [[4, 4], [[4, 3], [5, 4], [4, 2], [3, 4], [4, 4]]], 6: [[3, 4], [[4, 3], [5, 4], [4, 1], [3, 3], [4, 4]]], 7: [[3, 3], [[4, 2], [5, 4], [4, 0], [3, 2], [4, 4]]], 8: [[3, 3], [[4, 1], [5, 4], [4, 0], [3, 2], [4, 4]]], 9: [[3, 3], [[4, 1], [5, 4], [4, 0], [3, 2], [3, 4]]], 10: [[3, 3], [[4, 1], [5, 4], [3, 0], [2, 2], [3, 4]]], 11: [[3, 3], [[3, 1], [5, 4], [3, 0], [2, 1], [3, 4]]], 12: [[2, 3], [[3, 1], [5, 4], [3, 0], [2, 1], [3, 4]]]}
+_TAPE_SELLS = {150: {'WOOL': 12}, 196: {'MILK': 12}, 226: {'WOOL': 8}, 249: {'MELON': 6}, 250: {'MELON': 24}, 251: {'MELON': 12}, 252: {'MELON': 6}, 253: {'MELON': 6}, 255: {'MELON': 6}, 258: {'MILK': 12}, 264: {'MELON': 12}, 269: {'MILK': 6}, 293: {'WOOL': 8}, 298: {'MILK': 6}, 323: {'MILK': 6}, 338: {'MILK': 6}, 339: {'MILK': 3}, 340: {'MILK': 6}, 341: {'MILK': 3}, 342: {'WOOL': 6}, 343: {'WOOL': 6}, 360: {'MILK': 3}, 375: {'MILK': 15, 'WOOL': 14}, 381: {'STRAWBERRY': 8}, 386: {'MILK': 3}, 397: {'STRAWBERRY': 4}, 400: {'WOOL': 18}, 403: {'STRAWBERRY': 12}, 407: {'MILK': 9}, 409: {'MILK': 3}, 417: {'MILK': 6}, 423: {'WOOL': 10}, 430: {'STRAWBERRY': 10}, 431: {'STRAWBERRY': 6}, 433: {'MILK': 6, 'WOOL': 4}, 440: {'WOOL': 6}, 451: {'STRAWBERRY': 10}, 454: {'STRAWBERRY': 14}, 457: {'WOOL': 6}, 466: {'WOOL': 4}, 470: {'MILK': 9}, 473: {'MILK': 3}, 475: {'STRAWBERRY': 4}, 477: {'STRAWBERRY': 6}, 478: {'STRAWBERRY': 6}, 491: {'MILK': 9, 'WOOL': 4}, 498: {'STRAWBERRY': 10}, 502: {'STRAWBERRY': 14}, 503: {'WOOL': 4}, 505: {'WOOL': 6}, 515: {'MILK': 9}, 517: {'STRAWBERRY': 8, 'MILK': 5}, 523: {'STRAWBERRY': 16, 'WOOL': 6}, 529: {'WOOL': 4}, 539: {'STRAWBERRY': 12, 'MILK': 9}, 541: {'STRAWBERRY': 6}, 542: {'MILK': 3}, 546: {'STRAWBERRY': 10, 'WOOL': 8}, 550: {'STRAWBERRY': 14}, 552: {'WOOL': 11}, 563: {'MILK': 6}, 565: {'MILK': 9}, 570: {'STRAWBERRY': 14}, 576: {'MILK': 27}, 577: {'STRAWBERRY': 1}, 584: {'WOOL': 12}, 586: {'WOOL': 6}, 587: {'STRAWBERRY': 12}, 589: {'STRAWBERRY': 2}, 600: {'WOOL': 3}, 601: {'MILK': 6}, 611: {'STRAWBERRY': 12}, 613: {'STRAWBERRY': 1, 'MILK': 9}, 617: {'STRAWBERRY': 1}, 620: {'WOOL': 3}, 632: {'WOOL': 8}, 634: {'WOOL': 1}, 635: {'STRAWBERRY': 12, 'MILK': 9}, 637: {'STRAWBERRY': 2}, 640: {'WOOL': 9}, 647: {'STRAWBERRY': 2}, 648: {'MILK': 15}, 649: {'STRAWBERRY': 10, 'WOOL': 3}, 650: {'STRAWBERRY': 2}, 654: {'STRAWBERRY': 2}, 656: {'WOOL': 4}, 660: {'WOOL': 8}, 673: {'MILK': 12}, 681: {'MILK': 12}, 685: {'STRAWBERRY': 19}, 688: {'WOOL': 12}, 707: {'MILK': 3}, 711: {'WOOL': 3}, 718: {'MILK': 12, 'STRAWBERRY': 5}}
+_tape_state = {"hits": 0, "mode": None}
+
+
+def _tape_observe(obs):
+    step = int(_orak_get(obs, "step", 0) or 0)
+    if step == 0:
+        _tape_state["hits"] = 0; _tape_state["mode"] = None
+    if _tape_state["mode"] is not None or step not in _TAPE_POS:
+        return
+    seat = 1 if int(_orak_get(obs, "player", 0) or 0) == 1 else 0
+    farms = list(_orak_get(obs, "farms", []) or [])
+    if len(farms) < 2:
+        return
+    of = farms[1 - seat]
+    exp_f, exp_h = _TAPE_POS[step]
+    if list(of.get("farmer") or []) == exp_f and [list(h) for h in (of.get("hands") or [])] == exp_h:
+        _tape_state["hits"] += 1
+    if step == max(_TAPE_POS):
+        _tape_state["mode"] = "tape" if _tape_state["hits"] >= 7 else "other"
+
+
+def _tape_preds(step):
+    preds = {}
+    for k in range(1, _TAPE_K + 1):
+        t = step + k
+        if t // 24 != step // 24:
+            break
+        for item, q in _TAPE_SELLS.get(t, {}).items():
+            if q > preds.get(item, 0):
+                preds[item] = q
+    return preds
+
 
 def agent(obs, configuration=None):
     act = _pre_orak_agent(obs, configuration)
@@ -2577,6 +2616,7 @@ def agent(obs, configuration=None):
         visible = _v56_visible_configuration(configuration)
         step = int(_orak_get(obs, "step", 0) or 0)
         hour = step % 24
+        _tape_observe(obs)
         preds = {}
         for idx in range(_ORAK_N):
             ph = _orak_phantom(obs, visible, idx)
@@ -2589,6 +2629,8 @@ def agent(obs, configuration=None):
             for item, q in local.items():
                 if q > preds.get(item, 0):
                     preds[item] = q
+        if _tape_state["mode"] == "tape" and step >= 72:
+            preds = _tape_preds(step)
         if preds:
             act = _orak_front_run(dict(act), obs, preds)
     except Exception:
