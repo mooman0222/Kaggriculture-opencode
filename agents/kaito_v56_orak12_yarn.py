@@ -2451,18 +2451,38 @@ def _opening_guard(act, obs):
     if int(_sweep_get(obs, "step", 0) or 0) != 1:
         return act
     inv = (_sweep_get(obs, "market", {}) or {}).get("inventory", {}) or {}
-    if int(inv.get("WHEAT", 0) or 0) >= 9990:
-        return act  # 買い占めなし (通常は町消費で 9999)。順序変更は $6 の差でも -$2k に波及するため発火時のみ
+    if int(inv.get("WHEAT", 0) or 0) >= 9990 - _E030_N:
+        return act  # 相手の買い占めなし (通常は町消費で 9999、自分の先買い分を差し引く)
     market = list(act.get("market") or [])
     rank = {"BUY_ANIMAL": 0, "BUY_PRODUCT": 2}
     act["market"] = sorted(market, key=lambda o: rank.get(o[0] if o else "", 1))
     return act
 
 
+_E030_N = 30  # step0 に先買いする小麦数 (5 = 自衛のみ、>5 は step1 に差分を売り戻す)
+
+
+def _e030_prebuy(act, obs):
+    """E030: 開幕小麦の step0 先買い。上位帯 (2800+) は全員が step0 に小麦を買い、
+    v56 素の step1 購入は価格上昇で農場崩壊する。先買いで自衛し、余剰は step1 に売る。"""
+    step = int(_sweep_get(obs, "step", 0) or 0)
+    if _E030_N <= 0 or step > 1:
+        return act
+    market = [list(o) for o in (act.get("market") or [])]
+    if step == 0:
+        market = [["BUY_PRODUCT", "WHEAT", _E030_N]] + market
+    else:
+        market = [o for o in market if not (len(o) >= 2 and o[0] == "BUY_PRODUCT" and o[1] == "WHEAT")]
+        if _E030_N > 5:
+            market = [["SELL", "WHEAT", _E030_N - 5]] + market
+    act["market"] = market[:10]
+    return act
+
+
 def agent(obs, configuration=None):
     act = _pre_sweep_agent(obs, configuration)
     try:
-        return _opening_guard(_sweep(dict(act), obs), obs)
+        return _e030_prebuy(_opening_guard(_sweep(dict(act), obs), obs), obs)
     except Exception:
         return act
 
