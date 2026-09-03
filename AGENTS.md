@@ -11,6 +11,9 @@
 - 統計評価: `.venv/bin/python tests/evaluate.py --games N --opponent {random,starter,base}`
 - 強敵評価: `.venv/bin/python tests/strong_eval.py --agent agents/adaptive_route.py --replays /tmp/opencode/lbdata`
 - LB 実戦リプレイ取得: `kaggle competitions episodes <ref>` → `kaggle competitions replay <episodeId> -p /tmp/opencode/lbdata`
+- **提出前チェック (必須)**: kaggle_environments はファイル内で最後に定義された callable を呼ぶ。
+  `.venv/bin/python -c "src=open('agents/X.py').read(); env={}; exec(compile(src,'x','exec'),env); print([k for k,v in env.items() if callable(v)][-1])"`
+  が `agent_entry` であること (E031b の事故: ヘルパーが最後になり ERROR。E022c〜E030 はオラクル抜きの層が動いていた)
 - 提出: `.venv/bin/kaggle competitions submit kaggriculture -f main.py -m "..."` (1日5回まで、提出前にユーザーに確認。
   **メッセージに $ を使うと bash に食われるので注意**)
 

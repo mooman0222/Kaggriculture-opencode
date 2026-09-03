@@ -2636,3 +2636,10 @@ def agent(obs, configuration=None):
     except Exception:
         pass
     return act
+
+
+def agent_entry(obs, configuration=None):
+    """kaggle_environments はファイル内で最後に定義された callable をエージェントとして使う
+    (dict 挿入順。`agent` の再定義は位置を変えないため、E022c 以降は `_pre_orak_agent`
+    = オラクル抜きの層が本番で動いていた)。最後に新しい名前で定義して全層を通す。"""
+    return agent(obs, configuration)
