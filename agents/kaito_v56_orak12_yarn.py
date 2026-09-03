@@ -2303,7 +2303,8 @@ def _v56_use_yarn(obs):
         return False
     if shops[0] in _V56_CONTINUATION_SHOPS:
         return True
-    return any(s in _V56_SECOND_SHOP_SWITCH for s in shops[1:3])
+    # E029c: 3軒目 (step216) の切替は実戦 4勝16敗で棄却、2軒目のみ
+    return any(s in _V56_SECOND_SHOP_SWITCH for s in shops[1:2])
 
 
 def agent(obs, configuration=None):
@@ -2440,10 +2441,28 @@ def _sweep(action, obs):
 _pre_sweep_agent = agent
 
 
+def _opening_guard(act, obs):
+    """E029c: 序盤の注文順を動物優先にする。
+
+    相手が step0 に小麦を買い占めると step1 の小麦価格が上がり、v56 は最後の
+    SHEEP を $2 差で買えず農場が崩壊する (実戦 52c59c34e3 系に 0勝12敗)。
+    エンジンは注文をリスト順に処理するため BUY_ANIMAL を先頭へ、BUY_PRODUCT を末尾へ。
+    """
+    if int(_sweep_get(obs, "step", 0) or 0) != 1:
+        return act
+    inv = (_sweep_get(obs, "market", {}) or {}).get("inventory", {}) or {}
+    if int(inv.get("WHEAT", 0) or 0) >= 9990:
+        return act  # 買い占めなし (通常は町消費で 9999)。順序変更は $6 の差でも -$2k に波及するため発火時のみ
+    market = list(act.get("market") or [])
+    rank = {"BUY_ANIMAL": 0, "BUY_PRODUCT": 2}
+    act["market"] = sorted(market, key=lambda o: rank.get(o[0] if o else "", 1))
+    return act
+
+
 def agent(obs, configuration=None):
     act = _pre_sweep_agent(obs, configuration)
     try:
-        return _sweep(dict(act), obs)
+        return _opening_guard(_sweep(dict(act), obs), obs)
     except Exception:
         return act
 

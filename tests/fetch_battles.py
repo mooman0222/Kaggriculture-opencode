@@ -40,7 +40,7 @@ def main():
                 lb[row[2]] = float(row[4])
 
     rows = []
-    for f in sorted(Path(a.dir).glob("*.json")):
+    for f in sorted(Path(a.dir).glob("episode-*.json")):
         r = json.load(open(f))
         names = r["info"]["TeamNames"]
         if a.team not in names:
