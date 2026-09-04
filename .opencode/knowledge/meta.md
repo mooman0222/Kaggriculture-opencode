@@ -37,7 +37,8 @@
 ## リーダーボード観測 (2026-09-03 時点; 09-02 は refs/top-survey-2026-09-02.md)
 
 - **09-03 に総入れ替え**: Dmitry Larko 2948 / Milan Leonard 2948 / Crop Dusta 2932 / curiosity 2916 / cygn 2899、2800+ は約30チーム (前日 8)。tetsuya は top30 外
-- **2800+ の中身 = v56 本体 + step0 小麦先買い (N=5〜53) か、yhay81 Three-Day Shop Router テープ (53/48 買い占め、5チーム)**。開幕 N の相性が勝敗を決める (E030)
+- **2800+ の中身 = v56 本体 + step0 小麦先買い (N=5〜53) か、yhay81 Three-Day Shop Router テープ**。開幕 N の相性が勝敗を決める (E030)
+- **09-04: Router NB が更新され (開幕 13/8、v56 本体、step216 から C9S8 継続)、2700 帯の主流 (a88722961e、我々に 58%) になった**。旧版 (53/48、HF-X 本体、ce2e01084a) も 2300-2600 帯に残存。公開 NB のコンパイル版が忠実な代理相手になる (scratchpad/router)
 - 旧観測 (09-02):
 
 - トップ: 2909 (tetsuya) / Crop Dusta 2884 / **3정훈 2862 (新顔)** / QQ Farming 2861 / **RngRng 2855 (新顔)**。
