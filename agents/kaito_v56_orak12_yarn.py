@@ -1800,7 +1800,11 @@ def agent(obs, configuration=None):
 
 
 def _kaggle_submission_entrypoint(obs, configuration=None):
-    return agent(obs, configuration)
+    act = agent(obs, configuration)
+    try:
+        return _eager_sell(dict(act), obs)
+    except Exception:
+        return act
 
 
 # v54 train-only route residual override: r025-1-evidence-h2q8
@@ -2336,7 +2340,11 @@ def agent(obs, configuration=None):
 
 
 def _kaggle_submission_entrypoint(obs, configuration=None):
-    return agent(obs, configuration)
+    act = agent(obs, configuration)
+    try:
+        return _eager_sell(dict(act), obs)
+    except Exception:
+        return act
 
 
 def kaggle_agent_v56(obs, configuration=None):
@@ -2348,7 +2356,11 @@ def kaggle_agent_v56(obs, configuration=None):
     it to the end of the namespace.  This new name must remain the final
     callable in the generated file.
     """
-    return agent(obs, configuration)
+    act = agent(obs, configuration)
+    try:
+        return _eager_sell(dict(act), obs)
+    except Exception:
+        return act
 
 
 # ===== E022a: 終局スイープ (d29 h18+ のみ) =====================================
@@ -2678,8 +2690,41 @@ def agent(obs, configuration=None):
     return act
 
 
+_EAGER_ITEMS = ("STRAWBERRY", "MILK", "WOOL", "MELON")
+_EAGER_FROM_STEP = 72
+
+
+def _eager_sell(act, obs):
+    """E035a: 9941 系 (N30 ミラーで 0/8) の市場層を模倣 — プレミアム在庫は毎手すぐ売る (町需要ゲートなし)。"""
+    step = int(_sweep_get(obs, "step", 0) or 0)
+    if step < _EAGER_FROM_STEP:
+        return act
+    private = _sweep_get(obs, "private", {}) or {}
+    shed = _sweep_get(private, "shed", {}) or {}
+    market = [list(o) for o in (act.get("market") or [])]
+    units = [list(act.get("farmer") or ["PASS"])] + [list(h or ["PASS"]) for h in (act.get("hands") or [])]
+    for item in _EAGER_ITEMS:
+        stock = int(shed.get(item, 0) or 0)
+        reserve = sum(int(u[2]) if len(u) >= 3 else 1 for u in units if u and len(u) >= 2 and u[0] == "PICKUP" and u[1] == item)
+        existing = sum(int(o[2]) for o in market if len(o) >= 3 and o[0] == "SELL" and o[1] == item)
+        qty = stock - reserve - existing
+        if qty <= 0:
+            continue
+        ext = next((o for o in market if len(o) >= 3 and o[0] == "SELL" and o[1] == item), None)
+        if ext is not None:
+            ext[2] = int(ext[2]) + qty
+        elif len(market) < 10:
+            market.append(["SELL", item, qty])
+    act["market"] = market[:10]
+    return act
+
+
 def agent_entry(obs, configuration=None):
     """kaggle_environments はファイル内で最後に定義された callable をエージェントとして使う
     (dict 挿入順。`agent` の再定義は位置を変えないため、E022c 以降は `_pre_orak_agent`
     = オラクル抜きの層が本番で動いていた)。最後に新しい名前で定義して全層を通す。"""
-    return agent(obs, configuration)
+    act = agent(obs, configuration)
+    try:
+        return _eager_sell(dict(act), obs)
+    except Exception:
+        return act
