@@ -20,7 +20,8 @@ def load_agent(path):
     spec = importlib.util.spec_from_file_location(Path(path).stem, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.agent
+    # 提出時 kaggle が呼ぶのは最後の callable (= agent_entry)。ローカルもそれに合わせる
+    return getattr(mod, "agent_entry", mod.agent)
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
 
     root = Path(__file__).resolve().parent.parent
     opponent = OPPONENTS.get(args.opponent, load_agent(root / "agents" / "base.py"))
-    my_agent = load_agent(root / "main.py")
+    my_agent = load_agent(root / "agents" / "kaito_v56_orak16.py")
 
     wins = losses = ties = 0
     my_money, opp_money = [], []

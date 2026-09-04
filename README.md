@@ -1,11 +1,12 @@
 # Kaggriculture ベースシステム
 
 [Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
-**現行の提出は `agents/kaito_v56_orak16.py` (E029)** — 公開ノートブック
+**現行の提出は `agents/kaito_v56_orak16.py` (E035a)** — 公開ノートブック
 kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
 マルチホライズン・セルフオラクル front-run (K=16)、終局スイープ、ヤーンルート遅延切替
-(2-3軒目が YARN_STORE なら step144/216 で切替) を載せたもの。
-旧世代: `agents/frontier_*` (E020)、`main.py` (E019b HarvestForge-X + K4)。
+(2-3軒目が YARN_STORE なら step144/216 で切替)、テープオラクル×2、
+step216 C9S8 移植、プレミアム即売り層を載せたもの。
+旧世代: `agents/frontier_*` (E020)、E019b HarvestForge-X + K4 (git 履歴に退避、main.py は 2026-09-04 に削除)。
 経緯・検証結果は `AGENTS.md` と `.opencode/knowledge/` を参照。
 
 ## ゲーム概要
@@ -20,14 +21,13 @@ kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
 ## 構成
 
 ```
-agents/kaito_v56_orak16.py  現行 (E034: v56 + 小麦先買い30 + K16 オラクル + テープオラクル×2 + step216 C9S8 移植 + ヤーン切替 + sweep)
+agents/kaito_v56_orak16.py  現行 (E035a: E034 + プレミアム即売り層)
 agents/kaito_v56_orak12_yarn.py  E029b (同上の K=12 版、2軸提出)
 agents/kaito_v56_*.py   v56 系の各段階 (素/sweep/oracle/orak12)
 agents/frontier_k4.py   旧提出 (E020b: frontier + K4 デット式 front-run 移植)
 agents/frontier_prvsiyan.py  frontier 原本 (公開NBペイロード展開・無改変、メタヘッジ提出)
-main.py                 前世代 E019b (HarvestForge-X + K4。A/B の強相手用)
-agents/base.py          melon_maxxer 原版 (ベースライン比較用)
 agents/e018_route.py    旧主力 E018 (ルート再生型、A/B の中堅相手用)
+agents/base.py          melon_maxxer 原版 (ベースライン比較用)
 agents/adaptive_route.py  E018 系ツールのエージェント工場 (make_adaptive_agent)
 tests/fetch_battles.py  実戦リプレイを相手系統 (24手署名/動物構成) 別に集計
 tests/h2h.py            2エージェントの同シード両席直接対決 (ペア margin + ショップ列)
@@ -66,7 +66,7 @@ python tests/evaluate.py --games 20 --opponent base
 Kaggle CLI をセットアップ後 (`pip install kaggle`, API トークン設定):
 
 ```bash
-kaggle competitions submit kaggriculture -f main.py -m "E019b ..."
+kaggle competitions submit kaggriculture -f agents/kaito_v56_orak16.py -m "E035a ..."
 ```
 
-またはノートブック上で main.py をアップロードして提出。
+またはノートブック上で agents/kaito_v56_orak16.py をアップロードして提出。

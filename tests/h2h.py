@@ -8,7 +8,7 @@ from kaggle_environments import make
 
 def load(p):
     s = importlib.util.spec_from_file_location(Path(p).stem + str(abs(hash(p))), p)
-    m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return m.agent
+    m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return getattr(m, "agent_entry", m.agent)
 
 def play(a, b, seed):
     env = make("kaggriculture", configuration={"episodeSteps": 720}, debug=False)

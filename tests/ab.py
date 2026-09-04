@@ -4,8 +4,8 @@
 
 使い方:
     .venv/bin/python tests/ab.py --variant agents/experimental.py --opponent base --games 20
-    .venv/bin/python tests/ab.py --variant agents/experimental.py --opponent main.py --games 20
-    # --opponent main.py = 現最強を相手にした勝率テスト (強い相手での評価)
+    .venv/bin/python tests/ab.py --variant agents/experimental.py --opponent agents/kaito_v56_orak16.py --games 20
+    # --opponent agents/kaito_v56_orak16.py = 現最強を相手にした勝率テスト (強い相手での評価)
 
     # シードを固定して再現性を保証:
     .venv/bin/python tests/ab.py --variant agents/experimental.py --opponent base --seed0 42
@@ -26,7 +26,8 @@ def load_agent(path):
     spec = importlib.util.spec_from_file_location(Path(path).stem, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.agent
+    # 提出時 kaggle が呼ぶのは最後の callable (= agent_entry)。ローカルもそれに合わせる
+    return getattr(mod, "agent_entry", mod.agent)
 
 
 def play(agent_fn, opponent, seed):
@@ -39,7 +40,7 @@ def play(agent_fn, opponent, seed):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--variant", required=True, help="実験対象のエージェントファイル (A)")
-    parser.add_argument("--base", default="main.py", help="比較基準のエージェントファイル (B)")
+    parser.add_argument("--base", default="agents/kaito_v56_orak16.py", help="比較基準のエージェントファイル (B)")
     parser.add_argument("--opponent", default="base", help="共通の対戦相手: random/starter/base/ファイルパス")
     parser.add_argument("--games", type=int, default=20)
     parser.add_argument("--seed0", type=int, default=0)
