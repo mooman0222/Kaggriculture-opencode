@@ -38,6 +38,7 @@
 
 - **09-03 に総入れ替え**: Dmitry Larko 2948 / Milan Leonard 2948 / Crop Dusta 2932 / curiosity 2916 / cygn 2899、2800+ は約30チーム (前日 8)。tetsuya は top30 外
 - **2800+ の中身 = v56 本体 + step0 小麦先買い (N=5〜53) か、yhay81 Three-Day Shop Router テープ**。開幕 N の相性が勝敗を決める (E030)
+- **09-04 02:40 UTC の top-12 (再入れ替え)**: Crop Dusta 3015 / Jesse Bullard 2958 / Giulio Ravasio 2955 / Knight of Favonius 2951 / AI是我的豆包 2917 / 薄和叶 2906 / bono 2899 / curiosity 2890 / sbol ball 2885。**Larko は 74 位、Subin An は 230 位に転落** (43 先買いは対策済み)。開幕 N は 0/5/13/16/20/30/35/43 に分散。上位の大半は v56 本体 (farm diff 40-80) で差は市場層と開幕のみ。**Knight of Favonius は全品目を毎手 999 個売り注文 (即売り) で +16.8k/試合**、9941 系も同型 → E035 で検証中。Jesse Bullard は開幕を 3 手に分割 (step1 牛2、step2 雇用+羊1、step3 羊1) して買い占め耐性を持つ羊 12 頭型。ガチョウ 2 頭を足す v56 変種 (C7S5G2) も複数
 - **09-04: Router NB が更新され (開幕 13/8、v56 本体、step216 から C9S8 継続)、2700 帯の主流 (a88722961e、我々に 58%) になった**。旧版 (53/48、HF-X 本体、ce2e01084a) も 2300-2600 帯に残存。公開 NB のコンパイル版が忠実な代理相手になる (scratchpad/router)
 - 旧観測 (09-02):
 
