@@ -1,20 +1,25 @@
 # Kaggriculture プロジェクト (Kaggle コンペ)
 
 2人対戦の農業シミュレーション。シーズン終了時 (720ターン) の所持金が多い方が勝ち。
-`main.py` の `agent(obs)` をそのまま提出する。
+`agents/kaito_v56_orak16.py` をそのまま提出する (kaggle が呼ぶのは最後の callable `agent_entry`。
+`main.py` は E019c 時点の化石だったため 2026-09-04 に削除済み、E019b が必要なら git 履歴から復元)。
 
 ## 環境とコマンド
 
-- venv: `.venv/bin/python` (kaggle-environments + pygame-ce)
+- venv: `.venv/bin/python` (kaggle-environments + pygame-ce)。
+  ※ .venv 内の python が古い絶対パスを指して動かない場合は
+  `PYTHONPATH=.venv/lib/python3.14/site-packages /usr/bin/python3` で代用する
+- 対戦履歴の置き場: プロジェクト内の `tmp/` (git 管理外。`.gitignore` 済み)。
+  `/tmp` は容量 7.8GB のためリプレイ全量 (1戦 ~30MB) ですぐ枯渇する
 - Kaggle CLI: `.venv/bin/kaggle` (トークンは `~/.kaggle/access_token`)
 - 1試合: `.venv/bin/python tests/run_match.py --seed N --opponent {random,starter,base}`
 - 統計評価: `.venv/bin/python tests/evaluate.py --games N --opponent {random,starter,base}`
-- 強敵評価: `.venv/bin/python tests/strong_eval.py --agent agents/adaptive_route.py --replays /tmp/opencode/lbdata`
-- LB 実戦リプレイ取得: `kaggle competitions episodes <ref>` → `kaggle competitions replay <episodeId> -p /tmp/opencode/lbdata`
+- 強敵評価: `.venv/bin/python tests/strong_eval.py --agent agents/adaptive_route.py --replays tmp/<battles dir>`
+- LB 実戦リプレイ取得: `kaggle competitions episodes <ref>` → `kaggle competitions replay <episodeId> -p tmp/<dir>`
 - **提出前チェック (必須)**: kaggle_environments はファイル内で最後に定義された callable を呼ぶ。
   `.venv/bin/python -c "src=open('agents/X.py').read(); env={}; exec(compile(src,'x','exec'),env); print([k for k,v in env.items() if callable(v)][-1])"`
   が `agent_entry` であること (E031b の事故: ヘルパーが最後になり ERROR。E022c〜E030 はオラクル抜きの層が動いていた)
-- 提出: `.venv/bin/kaggle competitions submit kaggriculture -f main.py -m "..."` (1日5回まで、提出前にユーザーに確認。
+- 提出: `.venv/bin/kaggle competitions submit kaggriculture -f agents/kaito_v56_orak16.py -m "..."` (1日5回まで、提出前にユーザーに確認。
   **メッセージに $ を使うと bash に食われるので注意**)
 
 ## 現在の最優先プロジェクト (2026-08-29〜)
@@ -128,12 +133,33 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
   ツール: tests/fetch_battles.py (24手署名+動物構成で相手分類)、tests/h2h.py (同シード両席の直接対決)
 - スロット (2026-09-02 03:26): **E029 (55952937, PENDING) + orak16 (55934144, 2249)**
 
+### E030〜E036 (2026-09-03〜04): 開幕戦争と Router 対策 (詳細は experiments.md)
+
+- **E030**: 上位15解析 → 開幕小麦先買い N=30 を採用 (素v56 に +137k)。**提出 55973961 (2689.9)**
+- **E031**: yhay81 旧 Router テープへのテープオラクル K4 (Router に 8勝4敗→10勝2敗)。
+  **E031b** で agent_entry 修正 (kaggle は最後の callable を呼ぶ。E022c〜E030 はオラクル抜き層が本番稼働だった)。
+  **提出 55978117**
+- **E031d**: E031b (2599) < E030 (2712) は収束段階の差。テープオラクルは実戦 0/47 発火
+  (同 Islet 開幕で先回り在庫なし) も無害。天井の正体は**更新版 Router (a887、新主流)**
+- **E032-E034**: a887 の step216 以降ルート移植 + 第2テープオラクル。新 Router 実体に 12勝0敗 +7.0k。
+  **提出 56003003 (E034)**
+- **E035a**: プレミアム即売り市場層 (E034 ミラー 12勝0敗 +446、新 Router・素v56・c43 に劣化なし)。
+  全品目版は棄却。**提出 56013057 (2026-09-04)**
+- **E036 (棄却)**: 分割開幕 (Jesse 型) は v51 が雇用遅延に耐えず -64k。Knight 代理は無効
+- **実戦検証 P1 (2026-09-04)**: E031b 全233戦 (166W67L 71%) vs E034 132戦 (106W26L 80%)。
+  a887 は 41W14L +2.3k → **48W6L +4.8k** (移植が実戦で機能)、ce2e は 33W14L → 10W0L、
+  Ahmed C13 (-27k) にリベンジ +8.4k。残存: 09969bca1d 崩壊シグネチャ再発 (自C5S6、
+  小麦売り越し→給餌切れ連鎖の疑い、E034 でも未修正)、bf5f 0W1L (n=1、-1.1k)、
+  15da159ff0 (0W2L -4.2k)、C6S11 (1W3L)。データ: `tmp/e031b_battles/`、`tmp/e034_battles/`
+- スロット (2026-09-04 13:08 UTC): **E035a (56013057, PENDING) + E034 (56003003, 2636.2)**。
+  E031b (55978117, 2650.0) は押し出し
+
 ### 次のステップ
 
-1. **E029 の収束確認** (提出 2026-09-02 03:26)。旧 orak16 (2249) を超えるかが判定点。
-   150戦溜まったら `tests/fetch_battles.py --dir DIR --team MMN0222 --lb lb.csv` で
-   系統別勝率を出し、eb0a05e1e1 系への勝率と切替発火時の実戦マージンを確認
-   (敗戦の品目分解は「提出注文は不執行スパムで過大」に注意)
+1. **E035a の収束確認** (提出 2026-09-04 13:08 UTC)。150戦溜まったら
+   `tests/fetch_battles.py --dir tmp/<dir> --team MMN0222 --lb lb.csv` で系統別勝率を出し、
+   特に bf5f 系 (E031b で0勝3敗、E034 で0勝1敗) への勝率とミラー戦マージンを確認
+   (敗戦の品目分解は「提出注文は不執行スパムで過大」に注意 — 注文数量ベースで見る)
 2. **メタ監視 (最重要)**: kaito は2-3日周期で新版を公開 (v48→v56)。v57+ が出たら
    「コア差し替え → K16 オラクル移植 (make_oracle_k 方式) → sweep 移植 → 3点検証
    (vs 素コア両席ペア / vs 旧世代 / self-match)」のパイプラインを回す。
@@ -160,7 +186,7 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 - 検証3点セット: (1) vs base (劣化확認) (2) vs 素HF/e018 の H2H (3) 自分同士ミラー (自壊確認)。
   提出前に self-match (debug=True) で両者 DONE を確認する (検証エピソード対策)
 - 資産: 旧 E018 実装 = `agents/e018_route.py` (A/B 相手用)。素の HF との比較は
-  git 履歴 (E019 コミット時点の main.py) か変種生成スクリプトから復元。
+  git 履歴 (E019 コミット時点の main.py。現行ツリーからは 2026-09-04 に削除) か変種生成スクリプトから復元。
   旧ルート JSON (.opencode/data/) は E018 系ツール (eval_routes/strong_eval) 専用の遺産
 - 旧 E018 の注意書き (plan 焼き込み・None 罠・adaptive_route 同期) は
   agents/e018_route.py と adaptive_route.py を触るときのみ有効 — git 履歴の
@@ -171,10 +197,10 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 毎回の改善作業は次のサイクルで回す:
 
 1. **仮説**: `.opencode/knowledge/hypotheses.md` から未検証の仮説を選ぶ (または新規追加)
-2. **実装**: `main.py` / `agents/adaptive_route.py` に実装。既存挙動と A/B できるようフラグ/分岐で保持
+2. **実装**: `agents/kaito_v56_orak16.py` に実装。既存挙動と A/B できるようフラグ/分岐で保持
 3. **検証**: `evaluate.py` で 10〜20試合 + mirror match (自分同士) を確認
 4. **記録**: `.opencode/knowledge/experiments.md` に結果を追記
-5. **反映**: 有意な改善なら `findings.md` を更新し `main.py` のデフォルトに反映
+5. **反映**: 有意な改善なら `findings.md` を更新し `agents/kaito_v56_orak16.py` のデフォルトに反映
 6. **提出**: 価値があればユーザーに確認して提出、レーティング推移を確認
 
 ## ナレッジベースの扱い (最重要)
@@ -183,7 +209,7 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 ただし**この情報にとらわれないこと**:
 
 - 知見は「その時点の証拠」であって「正しさ」ではない。すべて日付・条件・検証方法付きで記録されている
-- メタは変わる: 対戦相手層・評価設定・コミュニティの戦略は日々変化する。条件が変わったら再実験してよい (ローカル実験は1試合約1.4秒と安価)
+- メタは変わる: 対戦相手層・評価設定・コミュニティの戦略は日々変化する。条件が変わったら再実験してよい (K16 フル層のローカル実験は1試合約26秒と重い。E018 時代の 1.4秒ではない)
 - 実験結果が既存知見と矛盾したら**実験を優先**し、知見を上書きする
 - 「やってはいけない」系の知見 (例: 土地購入はメロン専業で逆効果) も、戦略が変われば再評価の価値がある。知見は行動の禁止ではなく再評価の出発点
 - 新しい仮説はコストが安いうちにどんどん試す。既存知見との整合性チェックは実験の前ではなく後でよい
