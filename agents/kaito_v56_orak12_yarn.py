@@ -2272,6 +2272,9 @@ _V56_YARN_ROUTE = json.loads(zlib.decompress(base64.b85decode(
 )).decode("utf-8"))
 _V56_BACKBONE_POLICY = _v51_build_policy(_V56_BACKBONE_ROUTE, _V54_CONFIG)
 _V56_YARN_POLICY = _v51_build_policy(_V56_YARN_ROUTE, _V54_CONFIG)
+_V56_A887_ROUTE = json.loads(zlib.decompress(base64.b85decode('c-rk<+io1$k^Gf`p65Y*;ceeIQhOzsGZZLl8{Ppi7+`G}FzkofeOv6mFDa_Ks;eS1BJ!M~G=`tlVqfaqPiACf<j?>6>My_k_V+*k_Uhlh`}x&}>yIB_J$(P&tH1vGkN^7br$0UY=kLG%_P0O(&*%UB-}m30eBr0tyZd+9H-3Kg!>2#}^5O3G?WZ^QuO8ppzuR3uy*PXP-1D0sce}UacP?h{{J6Wh{ps<=YW?}Gckl0ZudG*3KX(1o`ya1wo__Al?f&tfHF)RayWQ@?=l5nk-S0l$pLX<dxZc0{<EIb9Pp&@y<l&Q}(HZ}7{-x=NecavLj0a?;wPy6R;TeY>t)>kcz5L<R`<u7FJkI_7r>6lEClIvi!_D<i_rruu+BbR3X*-8soir}$%Hy-%><*(S4B=t2wVv#+?{{~z={|X6IMq?7-dv;6ZEh)83C~XgQ~N!fq;Wr<U-fQezA#36<1oU{bN$?+!&HF%^di$fdg>pZ4y4J5fgxU|al3190)fdKW<MX;>33hEz1d_=2Kf1ty&H8H9K8Nuo2KL0eRIq%T|BSjBj)h-^UuyFJDFJN1R2c}JTLGxqAAms#c=+>U!K1t59u_f=quCDEjqgMm%T>!@WGRX^Lf--hITY|!voTh9sf;ve7Es@ZeOLdU;Y*h=kRuYI43`m4_Nm{jfZog&V;Yn1E6gcJ0FUJpe?c8e7hi<ess>;o>Oc(!W&9E2@f~w_%XvRi_h5S_sI{Vn=~~%M-M=z@caR{H#fUC_rLsMcX$8(=KX)pEi?QHVw|Bb6%N&-MK$`J`E(7-`{V7W`D_iw1NfD|g4oO#?3dpbteWE|;|{d9a0?xPV6>$991f&W2XbpnZ|+(%$%eIE^!22tjIQO;t<`=*zrDNtFukdUW1z#~J|2{wm&Q_;5!$2QaC3ie!@H0@^snYN+D{Ap?Ccoare+yAq^F4RnGE(y=1*?Rp=-s25p;8Hjvj#9h#Nu>x3En`Xp*v@*4$Dw4XJ;xw;D~wynQ8Snh!km00~Sf`5V{{a66E%emJ!~mOpN>^uv6_N%N&~fd=!~v_!VoyX(9EQ2KxdeV9%-u_mU3h99^7*yf&#e)OnQe_{quXginy#Vs2E`yE^5j2k8@nE2ot+lCQGg#CgDB5hfH;lL9fZ(MWL;9n+azXrigqHeV5#OIcFQ*IN9Ywx9OtqqO8*A1$!FqwJFsJ5GYk7?GHZ`!%Hr(@6Im$PQ{+nz19m~L;tGrex`(XO0agyM6Yix77R#_8&DoakOhr=V)BkSihS0g0bgmI@ribd(Eg1sm$Y*os#OT`JJ*Bi2)cElcdpc^i5?1R_=~w%R5>8qrgU!x7kQ8^>l7;u1%wcr?S=vMY_uN;1pw?m?DU2+NqEpTIqsU~Q%F*wnK7{=0~TXFiV4>F|RClrG14$~I^H2}WFbLTa1#)V4>@iuUOEoyP&XyS+bd&EF&Tx1?2=n4#584R;(2deKLYC-UR{-Sz&5-QC@v@MF;=jdr(Tjh3x@*h$|kHEaNQiD{1^%->*|dVsXpeo*bqeBhDIRRP8f_z+oKBmiA8lAv)uTXA*HHQ7JI@|qh0-B8BSUqh_SplBNQ)d|Tg<YVNkNIxQT#3M0B`%W)5gSuKE`VaS=*)Cm!be;T%o98Ki=3p|qU>{u7XU(W0#jatmr$*Yz-M)GFdI+d*ac%{(vd^)=Ajy&$iv#Y9nYWNIsCRL0m!&JI@lNQ2n8Li8z&z;l#FF{tKBO|c{Vic^af6$*9zYbhguQw85!{ThXFvRvVm~7)-@(=yZK?bX)_0k%!!|MTFw>ZTe0<@D1d9PXnl5R<h^oSVX;uw<3bgc5&|h9}Fa>UwmX$830_h;nV#HoYyr6g0ehP<1!#Y7{1_A14w9iIjOJ@A)DL83zEHEhXQ&UniHBjN9vvzGzWSG0dv3SzUd~+xk?mEU)>Cs)wvZt18G3N!Y8R!GdKilUjOZqfA?DAf1gkHhiqO?ca34rpJ(esthk>>~F0h5wJ3viZ&*96BLgije~Diyw`T6Fu{+o!d-dTpc@;ZaF=TS5y*4%(<iwNx5%JRjbEyt>~i(j22_FfW`~<mjSBsW9>9>X}BY>5K)4S_iv^fYE;4$P%VVUS@#V!qDxgJACuyy=(IhP(x4eC^X6#48UWr<BPLI#$cI)gh%iv$lQqeyM?n2kToI9Fb_Xt$&xtNGGl%%l5L4_nqhT^UJ2U7S`uj{;xc|pS2_pxgwkYRra55Y?dv+`3jM1>qK?!6?584*9Cld+_FxC~301^~khg8f413%N{vpTe9z}{ZaKiv~L8Q0=Qqz7%oK!TBaCs-f7a34g$82Wl*)mVhF;x!d!j+f`A2SQZ`AJBP4HFxj&}&tW?AWSk9^r6XldfMPt}@5O<yeQwp9J#R_Jt_&dj;EevTBE-P9l;}_Y&r?O4}zOFXeA`NbrEVYnfollEKd5o*LdBUM2CYj<K@Q^MX5T`0VHvccQwZDktV}XyJz64*o9UA_nl+4QSv#EAw?3Q{3}tiebcTgc+$U`)+fOHmzqP(ZCtV&yq)$B~|n!mmx<PZ6tuLK#ZhI+8CjLkR~vjxnlcbsT{K5XiTpQA9ueKCnOw~IvbXal}a0K<x1$uL$mFukEA$TWJnN{YTEqu?Ce|z!rM)7ofG_}WdV`r;V~>rFcMe*x}G__S&sBFT2?mvLbTbq;nQ)_h_(Hdrl2=EG7pEp#YW#t>0Y8&5T7!iFN)-wj&C(eudXLKuzeP|gj+KZ)uE?uG@SXBsTxQj{B*qFetduP$H#xqLtl^4S)<!v_Ve_P99G1aZ>`pOKtu@fGC0Gkyuif8xX}kuNeJpm$g>!=*oXue7#NyWJy=V01r~-Z!!mF^!l!j>mou<V2y1R->iy`YS?1(=0x$)aN5JShr7l{bxRym7r28fAX$oDpFXgHqMlvCNH+QL}PA8uOxw_}ROsZ@^(cY>07P_XDGYL5cc<KVqx9rZ2Nt>EksstUhZeuXr6Vq>9)R}Tcc&q2ieWi>Ux>)u685p@1&K`66q18(w?L6qi+*?_CC82e|^I8pHM0<-Zq{YN9cQV#U2egxPV-^Wd2)D6{e6Y!Cy7#`cJ+ppz$c*uAT+u&Ca8lr$<aiCujj3h-7FN_q4TsEyS!!hA^oT`i1wFGNHYvQKRU<hoChUS(Q{>v8R_E&wQq8jx(7U-c)vH{DXbmEA0BY9AyPNp@ZE4&vTu(^>u!WQ!ZHe@>4XeWqs5<X`Bkyuv0;9Ij7@e!VVy|SF1}Y;J8H2M#+t0z$F;kh+R4i?yW^lwMzOaxQ{G-i{g~2{TeZy`ebHt|^P?szr=~6?a(QTy0HAcgwFLM&pS7QPbtCL+L5reZVdC=;;6K1y)+RM|lP&{+VydSJ_#a4RWw&sDQ*ceLDfb1>Txe2xoN}~&Qj<rI~w9kAaWu7nJS~!J1k-e?@yJW^|TS;HA4TPSl*CF8=dBURU2ojzVa<2KvvJtDdjFS5{v9pYKzB+O#$x=Y+Xm@}s&ywEG%A+0h=Ip`MHYo!XFU<+*2}>+g;DLa%H1x|;BTfV38Q`#KNb@N4Z6Ww&li9#$eKJ{`mk5=yD_>Q74(BDNZv_+7ti>AGM>HDmP;R4p>cn!Hfd&PzD3&n8orpi5>z@gFxMuhj$<Z?Bn9D)5X#>kGX3huvC`kZNHJXV5#l^;G2?7e=J(q1iP}ipO5Hi<Jz7=iQExjqulEj(uGXjn+?u48;bNaR5&zUI220MLh)Ye<`YQd2U++Mutc=vOtpQF=a-&bopFoPjYKKZ%9gwp(&MxeO?&dMa;IOBCR7^-T&hRB{MT24on4?{zZbl7>^xxC7~aPB41AJGiaCv~d!@a7iOF`=6{7tqJKvos}=q{r8%l`uOMg^dugNK~1+&t0nFLp8xHEG{{SOm_QcB00PwMyJNm4J30zIJh`-i+0T7!K>f`$}&kce@26lugHjF>RgAD!7XIW5UwECnt%m22tYj<t4abAK>bkukvs*_2%|9R^DD-KQ<d|DOsFD^1$6_iiwmU;nT4%$bpraZhJdLU=TB`y{gTzHEW~=X6pF{42o=~;a69!?CJfm`FQRcPf#j}8cTorsvwo2=-Ak*{=B`sLYB=3sNYol9DRxT;G&wsAUND&VA-2yMYL@R8ac5`-3XKC!zsm_<M&+=XsdO&F&lXo9>`N-wkYqE5)@MV2UarOlBcav3lp)-0dKK127S=4ISW%6vwz+_go3h3f{Y$!~5>39gz=%-Kf@Pg3s+5^nN@q$O^yHM2kkn9y)Q5&ryrk9#t&a!WgBZekO5bubktZoZH;#88|9+nd$xl<yuOq@Cv`~5bxkgl2<iswL<0sSMT3KR>rao6uPOl-nHvOulFfk#Q_GPePq3$TlgKdgEGRloYj6&z1PN*uCRn66c5$|ZP6qt>osp^7Z+Pq0=A7Md}+sv(8qpxn*SaO%~4L_Z)g5EEw6VJvQqJyQ2YnG;0Dx#!9ca^j{cXbpgYFA&IqNXbpo!J0Ro?_<Yx~{f`z#Yjnms8=&log(iu**0p<!m;R(Jq)Sj+vuQEiLV%=KUg+V)PRhCyuII%yMgN*-uiBhNY~znMuL6Kx=WnZ`V@xPLSMQw@;k4=_N>{gqmV;F1{?;oC-ucGl4#UOwnn_LX%>YAN`H-ZY=y0wOHbFQWS0GCoH{Y9WRDuDmuc+YH<YK1D30lr_{K$Klf_NA-XnugIFXF!dV9}xn0(TG3&tQ0pA8ZCpx_viq~?4HmcvDmIAWJHpi4<9!z{9hU4zSMMORhaWx151*5|a0@2P2gkeTT%M!0f#LA%!@-|0G#3)zgK`kfwV#qU>I4=DeD@)~oVJDLlQcnHIi;#J8^=<jzeR8F$M3i!AG?~Gj`{CO0V^q(D)&mpiN)kmnmVd#pHB;#*D9*GoM{vAGuwosidzVWv3z$n}-^|!;(_SIrrAX;D2aKBnO_p9@9+!!ztg=u`V_rCJvJ;Tes=79U9b};<c$%Ui(^*+PN@avx9J@4#4-}XxSGn&(m~9@?q(KRe6s`;z2>GU2)<Z!a7enjtA|qar=A9HoMoFNbseGUX?2epJu8yC+n7x+g?8uH+VYO0a@3OEGa$<Tc(L7cW+_^+jR61t!WyyrW$Q6qs%P+S;nbsF(sHHh2V%k*h9Al$NuyGtR2N~ubPCh%j2_Ar6)yJ1h)U|m3A`)@*ViT?4Z!Y2v-GKnW%+gHGl=|MLQU?S`u0WPalsh68n#Xl^nCHcEEU0D%wJn|UP7ZQ|{oTN%jszj5gSMG{0K{%dmp3-7<2rQ2VL_SG^V&;&qKCPTaFn8*k2wOo@}$Lh<d0(~-?%xJHDyAa$9MzeAA|hG8TsK{3@4KEu_rCe=V@=OIrIs?Lltbv+Yh@A^0V>k!N&}%3xk6|u-j<Cw?&zWhX_;Fh(2PzuwCfWKxiX1r5?-IU8|m`P$)h;cS3fd#!>sS6{<z)d18KjVrSjvg>ob!Qm|cn=z0<N5xU2gKc9f5-SB(nTSlBJBe|rqNXxMhva>Q&wdcxBWP_DbJBgd$M(oL};s}+K9fY*dRKk+Wx&ADUCll&i8V0E<%oJiWq_hBhU^1Oi;>TOmMBckc_Cb?`huj<cGUzEb!KEmGkcW!loY|C!M1Sn?Vc~L4fRi=z99HRI7>Ef;k%c`4O1C-29SBgSL3#-;@*OCM)sD_pXYRSKW|yFS5FsEMgfvURAl}WE-^N0(Y^=cwD#4p1T4&RtSl9Z$ZbBkX#zX2OJT_>zcwRH_R-RWB<i8*@pZc?WV`(We+lP|h=kGAw_S{CR7x%G19&4{)VC?Ptf9L58KE9O~j~nBf?jDhiT2%_9TDX9*ZgR{(ubUjvF4UN{<7VcYf=C$z+j)V#Fdop8^}{zraLc;l6m5)#Xi6n4PuIR^QdtNWPCh<jUXiat9B+2!9bP;%xUz8b>hZ&Rrmy9|G9nMdl=7fR8|X^TuZoytu!&Fp3~S(a5qe^w4N{?<7iyMuEmG_#vW<04rF_-qJJJlK5<)U;J~h{Lo90U__2Qu^)yE3p@n{-7HMNvjQ6X8*x3O~n$gfr})~|~{UAm@k;JW9W8XJ}hL7ZrToJibW_ClTVp@5A{yT$yoNNIpr*iIGd*S<0X%#OE$IC&AA*@aR|(IBZ9N$H_9`#+2ORRA+9{h~_Q<cJj+bOo;9m8n>fFG}%K>shsyqJpiH^O44{PTV<DkR~delDjE9k(gxdi9!&KifSHw=!K3ecqB13E=x*E5g5eSCIYmyXXbSy^22;aREK?h>271YQA;9`uJ&!E_BKL=ie$7Li7iWydu}CT_LxY$48O;&MKA|}p9_QLLYcofHep0Y;tI5T@$4nrL(Y?A+oHvd4na9%12BS7Tui-CoFuO-TEoW~mgjN&L~5K|t1}I3D(PPgMN+d{PY&2weI>?u)pY{ooGk(dOxxQq2Zj-pr^DK+X-r~Tg3?WV(V=47DZ5Pfn<cpJL`EhpE-_D3IFM1cl&(@TFIdEaF|K%d-ZbmrGz~-5H`{$%IMh{JG7(zixQ2b4A6J)!nYqeIiMI|#(q(d%kPL?b2G4EHVSExOrkj{TX=ZB)i;3V~oME4vgpQi;`k_^wM7QAR^{Bc_Vs$ASE3@D)8d>q;kfdu#oR+H02Eo7hKh*K@s{LxpAs9p@VwNOkN|aU`5LUV7M0Ab>lVa+tQkdq;#a+?t4sw>}5X}i!YO;2Ua;ts-6%ek%8**b)Wh02dvT+TCt2P}eLS(=P5aId6s^}f{*SP4`$-qUY6yHR){?WQ*w3DPy>W8~3L+Wv`amlU5dWM)NC$yUMi2MrKr+{EgjYFVe52{-+(T4Jna*d=cO|Q~mfp`HIKbiv<ZRjIz5B&BMpyym6_YiL<!dK|toV3K{(!%qbCA&wYd|3V4*`ERM_u7<TqAy8Ml_)btc;D;BTsc(532853fjcMGx>(5`1}F{GK|Tn>XY+DN@$KX)4u5sEAtZx_Luxw-HWKQC1fabGE<r(_6U2$5ZV~lqYZsx_@0EEUx6Kfb6XsyR0=vlbltFkl;Gdl9=Ct#iat1W>WH_A*a?`M1-PLMg0)(-Ii9%&>DG)?;9ichhQ293~=L~G)K8{7e$&&H{2}VtH4?RuZ5tKkxV)3N$+-JT)=oPUx@*2;ZW{A3c5EWE3j8Az;WyYPLP&auNmm&73WOm9k9exUk2BJt#MsaX<7iI-nKC%=}njU9woG6f@%?px@jn*$gI!L+(NgT;GeJ^oYmVBIT8YlP<*O|-{rZn?CBZ$!hTQ$l^Ws5#FzzNhtDEk&pjW66v`#lMCQX|yhao3Nh{f=pJggjY%VaS3$6cjpmE8yBj=ab9}L_WhDs!^-_(ajzydy63*iq2RE95bXNS&58Vl$YbMt5tBvfUD80ee2)y+p=LSusMQdxK$2lgn8$s{)|#0(K6g>TN2@HbTKyga@1q&q+#{dAvRIMihveYcA!roDp0%5`vYx6*-FW57ed52meycVux$(D6`4dAjuk61)r~+P(;#5+csFcT?@1_CP!^|PeWO*u)$A(nB@lfoLG6}C@$+rLoY89iB^HrX-28}-L_}XT9)%;n4ljMUb(_mJxd=kNZmr;r*4Z(M)LXkvO4i#Hr9xt8xu}pHRB$LSac;2{E<n_f7_U~-y;~?S;l9DUAqXIHY}VrHN=RQxS|(WKJpO?ti+7ezaiVqHitc&~3q!I3@MwlWgvBN6pfS1zk{r#AwuW_Nk&#kKcqPqiCoY@WJ*lcS!^LfuJFwIuRK>s!>U%h-5(#4NRFN?$%Bba-s#RD}=@pRJo;y&{38>fSXv={|Do7-Mou*#r%KPIV3V53J+UXes(2=7e^)-vPr(@wT;$SXc<><PnV`c$ah#{94tjlygsBwTs1ajbbjRc$0|GOi)5w9Qt=_DAA0y^t55H}Z=?~1v}3_!7C#AQ-ztYTcV5DI6Me?uoazc9?)OCAb}<9f)X6^eK9OQPHxMfAifzY>P@BUj#m7MBo-Gbrqigsw!ntng&dwWA=TBsuYK0y&oIN@U$zYf&$jyanwi7l=ISvK#9DNj#k%9HFA0q^}+A*&aA0iB4;fKj#9+=mQh^<#ocM4Bq1tdva0GH6`#?&?V~>XfVlgI0O_XVk#^Yg3s-WrPM_Ut#UqNlcJv%nYhA94{cPFc*6u|3H6TYb=N^DPKZ%dRCS16hph&LHV>;$$5L8%2Ae+918?0!3gK+0Cj3cKEX`(haX?f08C5llEhnay)tdXK5=Hlt;6@rEwvlhLGl+mDLA0Q~5+QZz1Qs?4tDY?C%xaEJZgMwo7?tr>cE?!4p~A&4bKxSP;aJf82%yc#YHn6=kQ_JtEt{qI&7p6ae%V&6=jWhkDORN-0tZRF*Nv37m3?M2vE&?1%l~HHtW>`V`pQQ2a|VEz?aeEbNG86gl2z)8n!0PMoz+NeRC_h+R~b%|w?LegmnZ8a<qmRxzZ39O+c~){4UKxDLgtEFi)21?Q+eEQ&8Se-ffw6k&db~|-An1LZK^WR!woEb5gMRpOB1$-wn||2V#``D#MGsrMn&0647huQu(~5{$q6#SqDxJ#8=``GhM0D$odRf+W~vJkO^B3=fp1$r9@b5zO(s=h!XX=~n`jipYc)OzDN*;gi&~Gq9fwW}%usA7IL&f4TEyDvOjw2Fm|!0P>pbPMQ%m$zn)=ALK#VdBfSe05ge0p@SENn?R~qyovW^hP0d<0vO(pY+Y=;6ljx!oi+gXZ8Slt&)tIF#ahhM82jQS)C5-McCm@QUeFoNdhuOJvEA+~g4{^=##Qh7Fu$wp!{<!S&gsm(SuSGYVK6-~0JY-Lb{(eiSR0J}Jd0=}C;MtFC5D!e7(#2uvEMQIL(WYJHqMZgwU<c`DnDx;vZUJG#_nO8!nGa^ZPY@L}zHZHGI)dV3bgK!7xNwmcgSU;GA9U*G3$LgVnaaz9piT_rm#yj#>!a*T$xjcYU&IV{>02{K%67tOorgbbR8=jJUkEwBemXj~CEmsewzfSV%uq{POfJ9zWx{FTiiHde&gLs3m8;yIvrnPj54$CWT9Pr%aY?-LfN2;&GfZeM%WKuKI5XU4IK5+<@_Cu7T8y6@qnM%)eT7S3?GcJsIrPUvzoN<I$APcc0JB}%dHS*+GC2x)*s;4{U%`w>_#@!(h#_>#me4*Z?IoPfo%OhwI`m)Tw`eLG9KDe|w2<qgx9utE=-;vIyMvfeu5(nJF^}CH9XynL|%v>~6GQh|4R9!xti|9>RUaPnw*Ov)h5(8|i{b@<Z={&evUDL)SR2WVn!uwixiPB0eE+<*vqTZrf1&Wy~Ej=h4bS~>arw3|cYI0ZfBAV5jHmvO_C8k>SG~X#9XjsijLaB?X@8eU-^34IKDN0I+t`cC>P~S-PLz9m6*-S$2x6GBNBhf=BkA!3x!=x-2%V-0tprpLP7`HhZS>zBv{}$}1^7f&~L|#C!nDAFF%+_i1(5?`=APsO#56FcI7OL?rtt5r!hWjU89(4%XMRo(bvJEPrw0Ce2H6Jj}rxn5uw$P=pMe@{Yj7kyKEU6Z<m&ydRmvavm6W=FdNQ71nspe)0Dr@u9y5W>jVOpSD6$V+-VuutQ$S=%D#ftDo3Au+;OeOXB{O%kf5Ng6Wqy;0?gVhk1T3@~*33kKCvTjMvW<`vm3Y^b7^OlcXuap8?9Vl|X;lWCYUxZlK#aFAEa4rI290YO%*r?`fF96LYzo7+);_G=LD3h*IDln8Pi-V9kQQozx7nWNaO1;{8M_C>+>VC+~AtW5PYy#JOccCQDZ8v62>`)Fm(3fyG#JR`Rj4x2UPU@;aJn+h>N<dWB(Ay!>G?mG}RC$Ya#$POK1eY#3N=SJK=vW3ttTI5MWzx0$^%iPQ52<W{>y!A(nvWq<9D|h~1I5AF8WJNp_*|+natJhD+BbSo^D;*)#4--;bwpCZ1!Roi<g{F>B1dBE>|Ot=M`0{4%U7?x>WC6hN1c@uawRbUC=qQF7lkZPPSN@bnWtpw9DAluPXqjm_6R2Y8}Tg~EcR9G${R(xh2+}HUgktgDVJt3D^|c0V<w{D<s4P@`K}RF9L7{p)C0ODORTcIP8m^1(N|Q1R-$Z|D)o*@EDAwZbF#R6b6cskyvYc!g4{=lyor?mhKd?}@=*=RHwmF@q^)fd*4lZ9<gG5gE!rAnVg!gBRgnm?r+R>KA~OedY#jdK)g)kmD6YAXpmtTp5f3w<6PZ+ACHID2fTAX2lZ(@$L)$B`NnEFBpK6OrIDxyAVs(0{X4{iYVc7|4nvzhg-OI#m+9_~_BOiuFMInDe_Y^m%b0VvY`0vQEQG)Ep>;CZv?r!BuQ@u8ikpGDYR>(-9^vSxyu)8bD<sQb9koQ(T1dM&6nuBcXq{(`=n?n3}mWU#71W`^7o{2?vgOMrks5!;ym1R_m><yt@c7TskhEbt(Lz{7h2D*~W33foQA}qX2FDt#83!9F&fG7Sna2J{)Ee@eHT|HEeZC~Bgd-*u`EXky}u#(8A6*tng^ocr;Ll?JKe{tKw_$x$4c-i!6Om-s)9UMN}Z$HCZkJ1lw_F{v`t+Q`y6f(A{va#t~MXx)MwJ1&n3TwWMmYM{Lo0SAMBAYCywkQ&6i|1K}1>z_zEU0vol3|7NrY%{Ox}GT2&VlB-n}yg6o>5cQ6S1A$K&@sTY;;Z|NWvCjanH}st0I_|lyxjK$pUvYS18XeU0xPV*A%4GA6AVd3w_o*x<MUH0v}=#P^lcf;7tjrE32(lVUV?y3Kf{ANt%zB)UX$~bJAA^mzzmM9yc}k1Y7jZUjMSBudGfp`5HrYpW5iKs;5kTZA)$^%d3Kaa5BowVK3kdME*e*$X09_oxl)dY*0$gS&{Y3B$jo6J^5Uc*AE=%Dse;)lmWqAbR><8^?e8*T#0#gMO{sL;JLYZN=?8D$BMtZu#gHzsRb@FJ1`p9idbSOt&JgnknjUqA{_?o%vE7oexxaNAZDQ^wR~c^O`$A6_ky9#bume{ja{<@o#(x9w5)Jv&l;YS3wd?+k~IftkyKW~^E@%pW*@%LbKg|W$Ix%=K>UKoWJFqnzUEFV-6<BBT%?X?Zexi$3T{(7R2ww8=OCvcQyp2Xp5U<^X@iIx)FkVTnTOk~)JC1NLFxTyJ9rr}+r)#}h)y-yBg{ky>~9W{npVWrpx@g2#wjvL!{Ent>l7!K(m!h(N<5)*&6NZmY)elb7S?>@OKMumg;^G?LCe0^9;Z%=YV_C2J<FA2lj8IsHClG&flxB6N_U~=LDRhr*9K#o38h}U)J=t3!eSEPb4RCUyB7h<hva^{QNzO3G_#h4cxPkcp~J8#Xw{<)y)Tx6hLgY%a5n`Et`!_A!<&fJhvFQXF3SZb+mU3(_)bk!<NFOQ&(uKX&2h^T=2cyBnCqHCfG3Z7jQ1n_y3WN*2>;GO!YAC@uncNx@pOH-$I$QURCJySD84BCb2M^Bad=h@JAV}?t;orISG`D4OetLL6Uk}wi$s3e<_G8q`>tnStwU0{zqUn-oFR6prsTC!FeC$|m1nbNPR+~q;nb<!Jhc&+-6hGNb1?^v;P`ZiJr!Pw_fsuvs8D_B1mq|{)Z2n?FY6859Bl0ivyq1j6O3Gh1X~%{#JprgfCizA>6N@%yIB)~xkxgL5_RY$vY!~?LkNH?h27muE)_5q){WjKh5lnOEZ6JKoE~ddD1dC|OjW!yhv#arA2Ua$sszBtpH&W+LY1qvTR|fgWoBx3>jzgIJt~H1GH3P-miRhz#5)vV8rU~Z`$a=#C64KFK^+~H3ki5bZFO>-M6c<>BZkwt3yz4+LP`4`74Qr_r@*q*u@BOp=B0-^gU_s1A$U^KQ_GGshQ3i2-tTTV64H^W^P(_R9uZJkGzwUyB;lDXp}g_fAS5(DNjKZ9UWg<XbRH->`HQ%Y7Glpe9Jw^9khP|DuNkB<AT1$#prNS@^fH*7aeN3acsnKERJ8Y`J{Ue`7jX{O02_+E*h&E)rT6mDj#`N)0u6NTYxAFfxUwvaTn<tffE8kGSq#yB4xF2yfal%q2Z2B>tq2d8<#Rl=P3fPIe=0f#Tdf1xVWbp&EhNzvC^My2>Lg2>)&o67H0MD*MZ6|(-`E1OBvVHc3}&D9JKxmNb49H+9&gdZSkW-sFsONuHWZqRO9?V}Vzsp(Nn}#9^+gP6v{3WiOZ%i!D-_v5D%Tc$0`<nL5B>ZLw72T+f#>AVN<H)pS6;E+_Np;Nu~*B=RwuzqD>uckiF}i=JcsGy#M|j->4Aoh>ebVPJ^VkidwE&')).decode())
+_V56_A887_POLICY = _v51_build_policy(_V56_A887_ROUTE, _V54_CONFIG)
+_E032_SWITCH_STEP = 216  # E032: 2700 帯の主流系統 a88722961e の step216 以降 (C9S8 継続) を移植
 _V56_CONTINUATION_SHOPS = frozenset(('YARN_STORE', 'PET_CAFE'))
 
 
@@ -2318,9 +2321,15 @@ def agent(obs, configuration=None):
         step = int((obs or {}).get("step", 0) or 0)
         if _v56_use_yarn(obs):
             _V56_BACKBONE_POLICY(obs, visible)
+            _V56_A887_POLICY(obs, visible)
             return _V56_YARN_POLICY(obs, visible)
+        if step >= _E032_SWITCH_STEP:
+            _V56_BACKBONE_POLICY(obs, visible)
+            _V56_YARN_POLICY(obs, visible)
+            return _V56_A887_POLICY(obs, visible)
         default_action = _V56_BACKBONE_POLICY(obs, visible)
         _V56_YARN_POLICY(obs, visible)
+        _V56_A887_POLICY(obs, visible)
         return default_action
     except Exception:
         return _v51_safe_action(obs)
@@ -2495,6 +2504,7 @@ def agent(obs, configuration=None):
 _ORAK_N = 12
 _ORAK_BB = [_v51_build_policy(_V56_BACKBONE_ROUTE, _V54_CONFIG) for _ in range(_ORAK_N)]
 _ORAK_YARN = [_v51_build_policy(_V56_YARN_ROUTE, _V54_CONFIG) for _ in range(_ORAK_N)]
+_ORAK_A887 = [_v51_build_policy(_V56_A887_ROUTE, _V54_CONFIG) for _ in range(_ORAK_N)]
 _ORAK_ITEMS = ("MELON", "MILK", "STRAWBERRY", "WOOL")
 _ORAK_SHOPS = {
     "BAKERY": ("EGG", "WHEAT"),
@@ -2524,9 +2534,15 @@ def _orak_phantom(obs, visible, idx):
     pobs["day"] = step // 24
     if _v56_use_yarn(pobs):
         _ORAK_BB[idx](pobs, visible)
+        _ORAK_A887[idx](pobs, visible)
         return _ORAK_YARN[idx](pobs, visible)
+    if step >= _E032_SWITCH_STEP:
+        _ORAK_BB[idx](pobs, visible)
+        _ORAK_YARN[idx](pobs, visible)
+        return _ORAK_A887[idx](pobs, visible)
     d = _ORAK_BB[idx](pobs, visible)
     _ORAK_YARN[idx](pobs, visible)
+    _ORAK_A887[idx](pobs, visible)
     return d
 
 
@@ -2577,13 +2593,22 @@ _pre_orak_agent = agent
 _TAPE_K = 4
 _TAPE_POS = {3: [[4, 4], [[4, 4], [5, 4], [4, 4], [4, 5], [4, 4]]], 4: [[4, 4], [[4, 3], [5, 4], [4, 3], [3, 5], [4, 4]]], 5: [[4, 4], [[4, 3], [5, 4], [4, 2], [3, 4], [4, 4]]], 6: [[3, 4], [[4, 3], [5, 4], [4, 1], [3, 3], [4, 4]]], 7: [[3, 3], [[4, 2], [5, 4], [4, 0], [3, 2], [4, 4]]], 8: [[3, 3], [[4, 1], [5, 4], [4, 0], [3, 2], [4, 4]]], 9: [[3, 3], [[4, 1], [5, 4], [4, 0], [3, 2], [3, 4]]], 10: [[3, 3], [[4, 1], [5, 4], [3, 0], [2, 2], [3, 4]]], 11: [[3, 3], [[3, 1], [5, 4], [3, 0], [2, 1], [3, 4]]], 12: [[2, 3], [[3, 1], [5, 4], [3, 0], [2, 1], [3, 4]]]}
 _TAPE_SELLS = {150: {'WOOL': 12}, 196: {'MILK': 12}, 226: {'WOOL': 8}, 249: {'MELON': 6}, 250: {'MELON': 24}, 251: {'MELON': 12}, 252: {'MELON': 6}, 253: {'MELON': 6}, 255: {'MELON': 6}, 258: {'MILK': 12}, 264: {'MELON': 12}, 269: {'MILK': 6}, 293: {'WOOL': 8}, 298: {'MILK': 6}, 323: {'MILK': 6}, 338: {'MILK': 6}, 339: {'MILK': 3}, 340: {'MILK': 6}, 341: {'MILK': 3}, 342: {'WOOL': 6}, 343: {'WOOL': 6}, 360: {'MILK': 3}, 375: {'MILK': 15, 'WOOL': 14}, 381: {'STRAWBERRY': 8}, 386: {'MILK': 3}, 397: {'STRAWBERRY': 4}, 400: {'WOOL': 18}, 403: {'STRAWBERRY': 12}, 407: {'MILK': 9}, 409: {'MILK': 3}, 417: {'MILK': 6}, 423: {'WOOL': 10}, 430: {'STRAWBERRY': 10}, 431: {'STRAWBERRY': 6}, 433: {'MILK': 6, 'WOOL': 4}, 440: {'WOOL': 6}, 451: {'STRAWBERRY': 10}, 454: {'STRAWBERRY': 14}, 457: {'WOOL': 6}, 466: {'WOOL': 4}, 470: {'MILK': 9}, 473: {'MILK': 3}, 475: {'STRAWBERRY': 4}, 477: {'STRAWBERRY': 6}, 478: {'STRAWBERRY': 6}, 491: {'MILK': 9, 'WOOL': 4}, 498: {'STRAWBERRY': 10}, 502: {'STRAWBERRY': 14}, 503: {'WOOL': 4}, 505: {'WOOL': 6}, 515: {'MILK': 9}, 517: {'STRAWBERRY': 8, 'MILK': 5}, 523: {'STRAWBERRY': 16, 'WOOL': 6}, 529: {'WOOL': 4}, 539: {'STRAWBERRY': 12, 'MILK': 9}, 541: {'STRAWBERRY': 6}, 542: {'MILK': 3}, 546: {'STRAWBERRY': 10, 'WOOL': 8}, 550: {'STRAWBERRY': 14}, 552: {'WOOL': 11}, 563: {'MILK': 6}, 565: {'MILK': 9}, 570: {'STRAWBERRY': 14}, 576: {'MILK': 27}, 577: {'STRAWBERRY': 1}, 584: {'WOOL': 12}, 586: {'WOOL': 6}, 587: {'STRAWBERRY': 12}, 589: {'STRAWBERRY': 2}, 600: {'WOOL': 3}, 601: {'MILK': 6}, 611: {'STRAWBERRY': 12}, 613: {'STRAWBERRY': 1, 'MILK': 9}, 617: {'STRAWBERRY': 1}, 620: {'WOOL': 3}, 632: {'WOOL': 8}, 634: {'WOOL': 1}, 635: {'STRAWBERRY': 12, 'MILK': 9}, 637: {'STRAWBERRY': 2}, 640: {'WOOL': 9}, 647: {'STRAWBERRY': 2}, 648: {'MILK': 15}, 649: {'STRAWBERRY': 10, 'WOOL': 3}, 650: {'STRAWBERRY': 2}, 654: {'STRAWBERRY': 2}, 656: {'WOOL': 4}, 660: {'WOOL': 8}, 673: {'MILK': 12}, 681: {'MILK': 12}, 685: {'STRAWBERRY': 19}, 688: {'WOOL': 12}, 707: {'MILK': 3}, 711: {'WOOL': 3}, 718: {'MILK': 12, 'STRAWBERRY': 5}}
-_tape_state = {"hits": 0, "mode": None}
+_tape_state = {"hits": 0, "mode": None, "hits2": 0, "n13": False}
+# E033: 第2テープ = 更新版 Three-Day Shop Router (開幕 13/8、v56 本体、step216 から C9S8 継続)。
+# 2700 帯の主流系統 (a88722961e)。本体位置は v56 と同一なので「相手の step0 小麦買い 13」を
+# 市場在庫 (10000 - 自分の先買い - 町消費 1 - 13) で識別し、位置一致と併せてラッチする。
+_TAPE2_POS = {3: [[3, 3], [[4, 4], [4, 4], [4, 4], [4, 5], [4, 4]]], 4: [[2, 3], [[4, 3], [4, 4], [4, 3], [4, 4], [4, 4]]], 5: [[2, 3], [[4, 3], [4, 4], [4, 2], [4, 4], [4, 4]]], 6: [[2, 3], [[4, 3], [3, 4], [4, 1], [4, 4], [4, 4]]], 7: [[1, 3], [[4, 3], [3, 4], [4, 1], [3, 4], [3, 4]]], 8: [[1, 3], [[3, 3], [3, 4], [4, 1], [3, 3], [2, 4]]], 9: [[1, 3], [[3, 2], [3, 4], [3, 1], [3, 3], [1, 4]]], 10: [[2, 3], [[3, 2], [3, 4], [2, 1], [3, 3], [1, 4]]], 11: [[3, 3], [[3, 2], [3, 3], [1, 1], [3, 3], [1, 4]]], 12: [[3, 3], [[2, 2], [3, 2], [0, 1], [3, 3], [0, 4]]]}
+_TAPE2_SELLS = {150: {'WOOL': 10}, 168: {'WOOL': 2}, 195: {'MILK': 12}, 226: {'WOOL': 8}, 249: {'MELON': 6}, 250: {'MELON': 24}, 251: {'MELON': 12}, 252: {'MELON': 6}, 253: {'MELON': 6}, 255: {'MELON': 6}, 258: {'MILK': 12}, 264: {'MELON': 12}, 269: {'MILK': 6}, 293: {'WOOL': 8}, 298: {'MILK': 6}, 323: {'MILK': 6}, 338: {'MILK': 6}, 339: {'MILK': 3}, 340: {'MILK': 6}, 341: {'MILK': 3}, 342: {'WOOL': 6}, 343: {'WOOL': 6}, 361: {'WOOL': 1}, 364: {'WOOL': 3}, 365: {'WOOL': 2}, 366: {'WOOL': 2}, 367: {'WOOL': 4}, 369: {'WOOL': 6}, 381: {'MILK': 7}, 382: {'MILK': 5}, 385: {'STRAWBERRY': 8}, 389: {'WOOL': 4}, 393: {'MILK': 8}, 395: {'STRAWBERRY': 4}, 397: {'MILK': 7}, 403: {'STRAWBERRY': 12}, 406: {'WOOL': 14}, 407: {'MILK': 3}, 409: {'WOOL': 4}, 417: {'MILK': 4}, 418: {'WOOL': 6}, 421: {'MILK': 2}, 422: {'MILK': 3}, 427: {'STRAWBERRY': 6}, 429: {'STRAWBERRY': 10}, 431: {'MILK': 3}, 433: {'MILK': 6, 'WOOL': 4}, 438: {'MILK': 3}, 440: {'WOOL': 6}, 451: {'STRAWBERRY': 10}, 454: {'STRAWBERRY': 14}, 457: {'WOOL': 6}, 462: {'MILK': 6}, 463: {'MILK': 3}, 466: {'WOOL': 4}, 472: {'MILK': 9}, 475: {'STRAWBERRY': 4}, 477: {'STRAWBERRY': 6}, 478: {'STRAWBERRY': 6}, 486: {'MILK': 6, 'WOOL': 6}, 487: {'MILK': 6, 'WOOL': 2}, 493: {'MILK': 9, 'WOOL': 4}, 498: {'STRAWBERRY': 10}, 502: {'STRAWBERRY': 14}, 505: {'WOOL': 10}, 510: {'MILK': 6, 'WOOL': 2}, 511: {'MILK': 6}, 517: {'MILK': 9, 'STRAWBERRY': 8}, 523: {'STRAWBERRY': 16}, 525: {'WOOL': 6}, 529: {'WOOL': 4}, 534: {'STRAWBERRY': 6, 'MILK': 6, 'WOOL': 6}, 535: {'STRAWBERRY': 6, 'MILK': 6, 'WOOL': 2}, 536: {'STRAWBERRY': 6}, 541: {'STRAWBERRY': 18, 'MILK': 9}, 546: {'STRAWBERRY': 10}, 548: {'WOOL': 8}, 550: {'STRAWBERRY': 14}, 552: {'WOOL': 11}, 558: {'MILK': 6}, 559: {'MILK': 6}, 560: {'MILK': 3}, 565: {'MILK': 6}, 570: {'STRAWBERRY': 14}, 576: {'MILK': 27}, 582: {'STRAWBERRY': 6, 'WOOL': 6}, 583: {'STRAWBERRY': 6, 'WOOL': 4}, 584: {'STRAWBERRY': 6, 'WOOL': 6}, 585: {'STRAWBERRY': 1, 'WOOL': 2}, 586: {'WOOL': 18}, 589: {'STRAWBERRY': 14}, 600: {'WOOL': 3}, 601: {'MILK': 6}, 606: {'STRAWBERRY': 6, 'MILK': 6}, 607: {'STRAWBERRY': 3, 'MILK': 3}, 613: {'STRAWBERRY': 14}, 614: {'MILK': 9}, 620: {'WOOL': 3}, 630: {'STRAWBERRY': 6, 'MILK': 6, 'WOOL': 6}, 631: {'STRAWBERRY': 6, 'MILK': 3, 'WOOL': 3}, 632: {'STRAWBERRY': 6}, 633: {'STRAWBERRY': 6}, 634: {'WOOL': 9}, 637: {'STRAWBERRY': 14, 'MILK': 9}, 640: {'WOOL': 9}, 648: {'MILK': 15}, 649: {'STRAWBERRY': 10, 'WOOL': 3}, 654: {'STRAWBERRY': 4}, 656: {'WOOL': 4}, 660: {'WOOL': 8}, 669: {'MILK': 3}, 673: {'MILK': 9}, 678: {'STRAWBERRY': 6, 'MILK': 3}, 679: {'STRAWBERRY': 6}, 680: {'STRAWBERRY': 6}, 681: {'STRAWBERRY': 4}, 683: {'MILK': 9}, 684: {'MILK': 3}, 685: {'STRAWBERRY': 22}, 688: {'WOOL': 12}, 707: {'MILK': 3}, 711: {'WOOL': 3}, 712: {'MILK': 3}, 718: {'MILK': 3}}
 
 
 def _tape_observe(obs):
     step = int(_orak_get(obs, "step", 0) or 0)
     if step == 0:
-        _tape_state["hits"] = 0; _tape_state["mode"] = None
+        _tape_state["hits"] = 0; _tape_state["hits2"] = 0; _tape_state["n13"] = False; _tape_state["mode"] = None
+    if step == 1:
+        inv = int(((_orak_get(obs, "market", {}) or {}).get("inventory", {}) or {}).get("WHEAT", 0) or 0)
+        drop = 10000 - inv - _E030_N  # 町消費 1 + 相手の step0 買い
+        _tape_state["n13"] = 10 <= drop <= 16
     if _tape_state["mode"] is not None or step not in _TAPE_POS:
         return
     seat = 1 if int(_orak_get(obs, "player", 0) or 0) == 1 else 0
@@ -2594,17 +2619,32 @@ def _tape_observe(obs):
     exp_f, exp_h = _TAPE_POS[step]
     if list(of.get("farmer") or []) == exp_f and [list(h) for h in (of.get("hands") or [])] == exp_h:
         _tape_state["hits"] += 1
+    exp_f2, exp_h2 = _TAPE2_POS[step]
+    if list(of.get("farmer") or []) == exp_f2 and [list(h) for h in (of.get("hands") or [])] == exp_h2:
+        _tape_state["hits2"] += 1
+    if step == 3:
+        inv = int(((_orak_get(obs, "market", {}) or {}).get("inventory", {}) or {}).get("WHEAT", 0) or 0)
+        # step3 の在庫 = 10000 - 町消費(1) - 相手の保持分(13-8=5) - 自分の保持分(_E030_N-25=5) ≈ 9989。
+        # 相手 N=13 なら step1 時点で 10000-1-13-_E030_N。ここでは step1 の観測を持たないため
+        # step3 では保持分の差で判定できない → n13 は step1 の在庫で判定する (下の分岐)
+        pass
     if step == max(_TAPE_POS):
-        _tape_state["mode"] = "tape" if _tape_state["hits"] >= 7 else "other"
+        if _tape_state["hits"] >= 7:
+            _tape_state["mode"] = "tape"
+        elif _tape_state["hits2"] >= 7 and _tape_state["n13"]:
+            _tape_state["mode"] = "tape2"
+        else:
+            _tape_state["mode"] = "other"
 
 
 def _tape_preds(step):
     preds = {}
+    table = _TAPE2_SELLS if _tape_state["mode"] == "tape2" else _TAPE_SELLS
     for k in range(1, _TAPE_K + 1):
         t = step + k
         if t // 24 != step // 24:
             break
-        for item, q in _TAPE_SELLS.get(t, {}).items():
+        for item, q in table.get(t, {}).items():
             if q > preds.get(item, 0):
                 preds[item] = q
     return preds
@@ -2629,7 +2669,7 @@ def agent(obs, configuration=None):
             for item, q in local.items():
                 if q > preds.get(item, 0):
                     preds[item] = q
-        if _tape_state["mode"] == "tape" and step >= 72:
+        if _tape_state["mode"] in ("tape", "tape2") and step >= 72:
             preds = _tape_preds(step)
         if preds:
             act = _orak_front_run(dict(act), obs, preds)
