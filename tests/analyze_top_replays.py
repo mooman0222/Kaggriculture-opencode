@@ -1,6 +1,6 @@
 """上位チームのリプレイから戦略シグネチャを抽出・集計する。
 
-使い方: .venv/bin/python tests/analyze_top_replays.py [--dir /tmp/opencode/topdata] [--extra FILE ...]
+使い方: .venv/bin/python tests/analyze_top_replays.py [--dir tmp/topdata] [--extra FILE ...]
 """
 import argparse
 import json
@@ -102,7 +102,7 @@ def fmt_row(g):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", default="/tmp/opencode/topdata")
+    parser.add_argument("--dir", default="tmp/topdata")
     parser.add_argument("--extra", action="append", default=[])
     args = parser.parse_args()
 

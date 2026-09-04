@@ -54,9 +54,8 @@ python tests/run_match.py --seed 1 --opponent base
 python tests/run_match.py --seed 1 --opponent starter --replay replay.json
 
 # 統計評価 (勝率・平均所持金)
-python tests/evaluate.py --games 20 --opponent random
-python tests/evaluate.py --games 20 --opponent starter
 python tests/evaluate.py --games 20 --opponent base
+python tests/evaluate.py --games 20 --opponent starter
 ```
 
 対戦相手は `random` (ランダム), `starter` (組み込み carrot ループ), `base` (melon_maxxer 原版)。

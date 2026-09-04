@@ -38,7 +38,7 @@ def replay(route_agent, opponent, seed):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", default="/tmp/opencode/topdata")
+    parser.add_argument("--dir", default="tmp/topdata")
     parser.add_argument("--games", type=int, default=5)
     parser.add_argument("--opponent", default="random", choices=["random", "starter", "base"])
     parser.add_argument("--top", type=int, default=20)

@@ -6,7 +6,7 @@
 
 使い方:
     .venv/bin/python tests/strong_eval.py --agent agents/adaptive_route.py \\
-        --replays /tmp/opencode/lbdata --games 3
+        --replays tmp/e031b_battles --games 3
 """
 import argparse
 import json

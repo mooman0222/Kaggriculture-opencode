@@ -10,7 +10,7 @@
   - compress_route: base85+zlib 圧縮 (提出用埋め込み)
 
 使い方:
-  .venv/bin/python tests/route_gen.py --source /tmp/opencode/topdata/episode-XXX-replay.json
+  .venv/bin/python tests/route_gen.py --source tmp/topdata/episode-XXX-replay.json
   .venv/bin/python tests/route_gen.py --extract-only ...
 """
 import argparse
@@ -199,7 +199,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", help="ルート抽出元のリプレイ JSON")
     parser.add_argument("--extract-only", action="store_true", help="抽出のみ行い保存する")
-    parser.add_argument("--out", default="/tmp/opencode/route_gen_out.json")
+    parser.add_argument("--out", default="tmp/route_gen_out.json")
     parser.add_argument("--opponent", default="random")
     parser.add_argument("--games", type=int, default=5)
     parser.add_argument("--optimize", action="store_true", help="ルートを最適化する")
