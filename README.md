@@ -30,6 +30,8 @@ agents/e018_route.py    旧主力 E018 (ルート再生型、A/B の中堅相手
 agents/base.py          melon_maxxer 原版 (ベースライン比較用)
 agents/adaptive_route.py  E018 系ツールのエージェント工場 (make_adaptive_agent)
 tests/fetch_battles.py  実戦リプレイを相手系統 (24手署名/動物構成) 別に集計
+tests/rating_traj.py    提出のレート推移・相手レート帯/提出時期別勝率 (非公式 ListEpisodes)
+tests/tape_eval.py      実戦リプレイの相手をテープ再生し候補エージェントを実走 (市場層 A/B)
 tests/h2h.py            2エージェントの同シード両席直接対決 (ペア margin + ショップ列)
 tests/run_match.py      1試合の実行と状態表示
 tests/evaluate.py       複数試合の勝率・平均所持金統計
