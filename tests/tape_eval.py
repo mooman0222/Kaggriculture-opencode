@@ -26,12 +26,12 @@ def tape(steps, seat):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("agent"); ap.add_argument("--dir", required=True); ap.add_argument("--sig", required=True)
+    ap.add_argument("agent"); ap.add_argument("--dir", required=True); ap.add_argument("--sig"); ap.add_argument("--ep", nargs="*", type=int, help="エピソード ID 指定 (sig の代わり)")
     ap.add_argument("--n", type=int, default=8); ap.add_argument("--cls", help="相手の最終クラスで絞る"); ap.add_argument("--team", default="MMN0222")
     a = ap.parse_args()
     cand = load(a.agent)
     rows = json.load(open(Path(a.dir) / "battles.json"))
-    sel = [r for r in rows if r["opp_sig"] == a.sig and (not a.cls or r["opp_cls"] == a.cls)]
+    sel = [r for r in rows if (r["ep"] in set(a.ep) if a.ep else r["opp_sig"] == a.sig) and (not a.cls or r["opp_cls"] == a.cls)]
     sel = sorted(sel, key=lambda r: r["ep"])[: a.n]
     tot = 0; rec_tot = 0; w = 0
     for r in sel:
@@ -47,7 +47,7 @@ def main():
         cls = animals(last[0].observation["farms"][me])
         print(f"ep {r['ep']} seat{me} opp_cls {r['opp_cls']} recorded {rec:+8.0f} -> {m:+8.0f}  (me {my:8.0f} opp {his:8.0f} recorded_opp {rp['rewards'][op]:8.0f}) my_cls {cls} {'DONE' if last[me].status=='DONE' else last[me].status}", flush=True)
     n = len(sel)
-    print(f"{a.agent} vs tape {a.sig}: {w}W{n-w}L, mean margin {tot/n:+.0f} (recorded {rec_tot/n:+.0f}, delta {(tot-rec_tot)/n:+.0f})")
+    print(f"{a.agent} vs tape {a.sig or a.ep}: {w}W{n-w}L, mean margin {tot/n:+.0f} (recorded {rec_tot/n:+.0f}, delta {(tot-rec_tot)/n:+.0f})")
 
 
 if __name__ == "__main__":

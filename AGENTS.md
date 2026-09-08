@@ -1,7 +1,7 @@
 # Kaggriculture プロジェクト (Kaggle コンペ)
 
 2人対戦の農業シミュレーション。シーズン終了時 (720ターン) の所持金が多い方が勝ち。
-`agents/kaito_v56_orak16.py` をそのまま提出する (kaggle が呼ぶのは最後の callable `agent_entry`。
+現行提出は `agents/kaito_v56_e050hybrid.py` (E050、2026-09-08) と `agents/kaito_v56_e041sellfirst.py` (E041)。E035a 時点の主力は `agents/kaito_v56_orak16.py` (kaggle が呼ぶのは最後の callable `agent_entry`。
 `main.py` は E019c 時点の化石だったため 2026-09-04 に削除済み、E019b が必要なら git 履歴から復元)。
 
 ## 環境とコマンド
