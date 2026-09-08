@@ -1,7 +1,7 @@
 # Kaggriculture ベースシステム
 
 [Kaggle コンペ: Kaggriculture](https://www.kaggle.com/competitions/kaggriculture) 用のエージェント。
-**現行の提出は `agents/kaito_v56_e050hybrid.py` (E050: v56 ボディ + 非ヤーン抽選は step216 から PSR テープに委任) と `agents/kaito_v56_e041sellfirst.py` (E041)**。以下の説明は E035a 時点の構成 — 公開ノートブック
+**現行の提出は `agents/kaito_v56_e052a.py` (E052a: E050 ハイブリッド + 開幕往復除去) と `agents/kaito_v56_e050hybrid.py` (E050)**。以下の説明は E035a 時点の構成 — 公開ノートブック
 kaitofukami/137-161-replay-9-12-final-v56-shop-hybrid (v56) をコアに、
 マルチホライズン・セルフオラクル front-run (K=16)、終局スイープ、ヤーンルート遅延切替
 (2-3軒目が YARN_STORE なら step144/216 で切替)、テープオラクル×2、
