@@ -37,3 +37,12 @@
 - rogerrogerroger3r「The best player's tape is not the best tape」: 高レート者の録画ほど再生で弱い (閉ループの出力だから)
 - destbreso「Mutants at the top」「Can I clone you from your DNA」: rank1 は固定プランを持たない別種、BRANCHER は複製可能
 - dariushafshar「Rating decay」: 同一提出のまま放置すると 2000-2500 帯で −80/日
+
+## E054 (2026-09-09): 0908 + 生成層の実装と提出 (ref 56112322)
+- 変種 mtmr_s1 (#4) と素の 0908 の差分を同シード実走で特定: 暇な手の WATER/CARE + 売り注文の先回し (t70〜)。素の 0908 に 8勝1敗
+- 実装 `agents/sr0908_live/` (main.py が router.py=0908 原本を包む)。層: (1) クローンゲート (開幕72手の両農場の人員座標一致)、
+  (2) K=6 先回し売り (次ターン PICKUP 分と同ターン買い戻し分を除外、最終投げ売りも先行、注文10枠超過時は見送り)、(3) 暇な手の WATER/CARE
+- 失敗から学んだこと: FEED 代行は他の家畜用の小麦を奪い脱走させる (-24k)。買い戻し (BUY_PRODUCT WHEAT 13 / SELL 13 / BUY 13) の SELL を先回しすると
+  価格操作が崩れ相手が +7k 得る。ゲートなしでは非クローン相手に平均 -1k (テープの売り時期は最適化済み)
+- 計測: ミラー 24勝0敗 +3.9k (`tests/h2h.py`)、実戦席差し替え (`tests/eval_replays.py --base`) で 0908 コピー 16/17、変種 8/9、非クローン差分 0
+- K 競争: K2>K1>… K12>K6 (+1.6k) だが対素 0908 の利得は K3 +4.6k > K6 +3.6k と減少。K=6 採用

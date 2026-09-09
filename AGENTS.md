@@ -160,6 +160,9 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
   (09-08 公開) の完全コピー、#3/#5/#8/#12 は Thomas Tschinkel 開幕の派生、#1 SpaTaro・#2 Otter Vibe はライブ方策
 - 我々 (2086) は 2000-2399 帯に勝率 47%/32% で実力値。後半テープが家畜を脱走させる欠陥あり (8戦中3戦)
 - **提出済み: ref 56111494 = Shop Router 0908 無改変 (`agents/shop_router_0908.tar.gz`)**。完全コピーの実測は 2838
+- **E054 提出済み: ref 56112322 = `agents/sr0908_live_k6.tar.gz`** (0908 + クローンゲート付き K6 売り先回し + 暇な手 WATER/CARE)。
+  ミラー 24勝0敗 +3.9k、実戦席差し替えで 0908 コピー 16/17・変種 8/9、非クローン相手は素の 0908 と同一。
+  評価ツール: `tests/h2h.py A B --games N` (同シード両席)、`tests/eval_replays.py X --base agents/sr0908_base/main.py --glob ...`
 
 ### 次のステップ
 
