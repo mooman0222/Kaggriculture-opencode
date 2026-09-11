@@ -2,7 +2,8 @@
 
 使い方: .venv/bin/python tests/ga/evolve.py --init tmp/ga/tapes_guarded.json --out tmp/ga/best.json --iters 400 --lam 16
 """
-import argparse, copy, json, random, sys, time
+import argparse, copy, json, os, random, sys, time
+STRUCT_P = float(os.environ.get("GA_STRUCT_P", "0.5"))
 sys.path.insert(0, "tests/ga"); from fitness import Fitness
 PRODUCTS = ("WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON", "EGG", "MILK", "WOOL", "FERTILIZER")
 SEED_COST = {"WHEAT": 10, "CARROT": 20, "TOMATO": 50, "STRAWBERRY": 100, "MELON": 80}
@@ -70,19 +71,60 @@ def mut_sell_delete(tape, rng):
 _TRACE = {}
 
 
+_TILES = []
+
+
 def unit_trace(tape):
     """Per-step unit positions/inventories/tiles for this tape in a mirror game (kagsim L1). Cached by id."""
     import kagsim
     key = id(tape)
     if key in _TRACE: return _TRACE[key]
     g = kagsim.Game(4242); out = []
+    _TILES.clear()  # tiles trace belongs to this tape; never let earlier traces accumulate
     while not g.done:
         o = g.observe(0); farm = o["farms"][0]; invs = o["private"]["inventories"]
         units = [farm["farmer"], *farm["hands"]]
         out.append([(tuple(pos), invs[i] if i < len(invs) else {}, farm["tiles"][pos[1]][pos[0]]) for i, pos in enumerate(units)])
+        _TILES.append(copy.deepcopy(farm["tiles"]))
         t = g.step_count; g.step(tape[t], tape[t])
     _TRACE.clear(); _TRACE[key] = out
     return out
+
+
+def tiles_trace(tape):
+    unit_trace(tape); return _TILES
+
+
+def _patrol_route(tiles_by_step, day, start_t, n_steps, rng):
+    """Greedy one-hand route: WATER unwatered plants / CARE uncared animals, else step toward the nearest such tile."""
+    x, y = 4, 4; route = []
+    watered = set()
+    for k in range(n_steps):
+        t = start_t + k; tiles = tiles_by_step[min(t, len(tiles_by_step) - 1)]
+        def needs(tx, ty):
+            tl = tiles[ty][tx]
+            if not isinstance(tl, dict) or (tx, ty) in watered: return False
+            return (tl.get("kind") == "PLANT" and not tl.get("watered_today")) or ("animal" in tl and not tl.get("cared_today"))
+        if needs(x, y):
+            tl = tiles[y][x]; route.append(["WATER"] if tl.get("kind") == "PLANT" else ["CARE"]); watered.add((x, y)); continue
+        cands = [(abs(tx - x) + abs(ty - y), tx, ty) for ty in range(10) for tx in range(10) if needs(tx, ty)]
+        if not cands: route.append(["PASS"]); continue
+        _, tx, ty = min(cands)
+        if tx != x: route.append(["EAST" if tx > x else "WEST"]); x += 1 if tx > x else -1
+        else: route.append(["SOUTH" if ty > y else "NORTH"]); y += 1 if ty > y else -1
+    return route
+
+
+def mut_hire_patrol(tape, rng):
+    """Add one hand for one day and give it a greedy watering/care patrol built from the tape's own trace."""
+    day = rng.randint(2, 28); ts = _hire_step(tape, day)
+    if ts is None or len(tape[ts]["market"]) >= 10: return False
+    tape[ts]["market"].append(["HIRE"])
+    route = _patrol_route(tiles_trace(tape), day, ts + 1, min(719, day * 24 + 24) - (ts + 1), rng)
+    for k, t in enumerate(range(ts + 1, min(719, day * 24 + 24))):
+        tape[t].setdefault("hands", []).append(route[k])
+    return True
+
 
 
 def mut_fertilize(tape, rng):
@@ -139,7 +181,52 @@ def mut_world_splice(tapes, rng):
     return True
 
 
-OPS = [mut_sell_shift, mut_sell_qty, mut_sell_split, mut_crop_swap, mut_sell_delete, mut_fertilize, mut_buy_earlier]
+def _hire_step(tape, day):
+    for t in range(day * 24, min(719, day * 24 + 24)):
+        if any(o and o[0] == "HIRE" for o in tape[t].get("market") or []): return t
+    return None
+
+
+def mut_hire_remove(tape, rng):
+    """Drop one hand for one day: remove a HIRE and delete that hand's action column for the day."""
+    day = rng.randint(1, 29); ts = _hire_step(tape, day)
+    if ts is None: return False
+    m = tape[ts]["market"]; idx = next(i for i, o in enumerate(m) if o and o[0] == "HIRE"); del m[idx]
+    n_hands = max(len(tape[t].get("hands") or []) for t in range(day * 24, min(719, day * 24 + 24)))
+    if n_hands == 0: return False
+    j = rng.randrange(n_hands)
+    for t in range(day * 24, min(719, day * 24 + 24)):
+        h = tape[t].get("hands") or []
+        if len(h) > j: del h[j]
+    return True
+
+
+def mut_hire_add(tape, rng):
+    """Add one hand for one day; its route is borrowed from a hand of the previous/next day."""
+    day = rng.randint(1, 28); ts = _hire_step(tape, day)
+    if ts is None or len(tape[ts]["market"]) >= 10: return False
+    tape[ts]["market"].append(["HIRE"])
+    src_day = day + rng.choice([-1, 1]); n_src = max(len(tape[t].get("hands") or []) for t in range(src_day * 24, min(719, src_day * 24 + 24)))
+    if n_src == 0: return False
+    j = rng.randrange(n_src)
+    for t in range(ts + 1, min(719, day * 24 + 24)):
+        src = tape[t - 24 * (day - src_day)].get("hands") or []
+        act = list(src[j]) if len(src) > j else ["PASS"]
+        tape[t].setdefault("hands", []).append(act)
+    return True
+
+
+def mut_land_earlier(tape, rng):
+    lands = [(t, i) for t, a in enumerate(tape) for i, o in enumerate(a.get("market") or []) if o and o[0] == "BUY_LAND"]
+    if not lands: return False
+    t, i = rng.choice(lands); nt = max(24, t - rng.randint(8, 48))
+    if len(tape[nt]["market"]) >= 10: return False
+    tape[t]["market"][i] = []; tape[nt]["market"].insert(0, ["BUY_LAND"]); return True
+
+
+OPS = [mut_sell_shift, mut_sell_qty, mut_sell_split, mut_crop_swap, mut_sell_delete, mut_fertilize, mut_buy_earlier,
+       mut_hire_remove, mut_hire_add, mut_hire_patrol, mut_land_earlier]
+STRUCT_OPS = [mut_hire_remove, mut_hire_add, mut_hire_patrol, mut_land_earlier, mut_fertilize, mut_crop_swap]
 
 
 def mutate(tapes, rng, n_ops):
@@ -149,7 +236,7 @@ def mutate(tapes, rng, n_ops):
         if rng.random() < 0.08:
             if 0 not in touched: child[0] = copy.deepcopy(child[0]); touched.add(0)
             mut_world_splice(child, rng); touched.update(range(len(child))); continue
-        op = rng.choice(OPS)
+        op = rng.choice(STRUCT_OPS) if rng.random() < STRUCT_P else rng.choice(OPS)
         if rng.random() < 0.3:  # shared opening: mutate tape 0 before step 144 and mirror it into every plan
             if 0 not in touched: child[0] = copy.deepcopy(child[0]); touched.add(0)
             before = [copy.deepcopy(a) for a in child[0][:144]]
