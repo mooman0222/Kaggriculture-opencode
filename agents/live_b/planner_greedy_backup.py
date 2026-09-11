@@ -21,8 +21,6 @@ P = {
     "sell_hold": float(os.environ.get("LB_HOLD", "0.0")),   # sell if price >= hold*base (0 = always sell)
     "replant_until_day": int(os.environ.get("LB_REPLANT", "27")),
     "herd": int(os.environ.get("LB_HERD", "5")),
-    "tomato_tiles": int(os.environ.get("LB_TOM", "12")), "tomato_until": int(os.environ.get("LB_TOM_DAY", "17")),
-    "tom_sell_day": int(os.environ.get("LB_TOM_SELL", "27")), "tom_sell_px": int(os.environ.get("LB_TOM_PX", "250")),
 }
 
 
@@ -89,22 +87,14 @@ class Planner:
             held = sum(v for k, v in inv(i).items() if k not in ("WHEAT", "FERTILIZER") and v > 0)
             near = dist(units[i], min(SHED_TILES, key=lambda s_: dist(units[i], s_)))
             last_day = day >= 29 and hour >= 24 - 2 - near  # the last day: bring everything home in time to sell
-            # the shed holds 100; everything still carried at midnight is dropped at once and the overflow is destroyed
-            if (held >= 3 and near <= 2) or (held >= 6 and near <= 4) or (held > 0 and hour >= 19 and near <= 5) or held >= 10 or (last_day and held > 0):
-                tasks[("DROP", i, "DROP")] = (-1 if last_day or hour >= 20 else 1, None)
-        shops = obs["town"]["unlocked_shops"]
-        tomato_world = any(sh in ("PIZZA_SHOP", "FARMERS_MARKET") for sh in shops[:5])
-        n_tomato = sum(1 for row in tiles for tl in row if isinstance(tl, dict) and tl.get("crop") == "TOMATO")
-        want_tomato = tomato_world and day <= P["tomato_until"] and n_tomato < P["tomato_tiles"]
+            if (held >= 6 and near <= 3) or (held > 0 and hour >= 21 and near <= 2) or held >= 12 or (last_day and held > 0):
+                tasks[("DROP", i, "DROP")] = (-1 if last_day else 1, None)
         if day <= P["replant_until_day"]:
-            budget = dict(seeds); tom_left = P["tomato_tiles"] - n_tomato if want_tomato else 0
+            budget = dict(seeds)
             for (x, y) in empties:
-                order = ("TOMATO", "WHEAT", "CARROT", "STRAWBERRY") if tom_left > 0 else ("WHEAT", "CARROT", "STRAWBERRY", "TOMATO")
-                for crop in order:
+                for crop in ("TOMATO", "STRAWBERRY", "CARROT", "WHEAT"):
                     if budget.get(crop, 0) > 0:
-                        tasks[(x, y, "PLANT")] = (0, crop); budget[crop] -= 1
-                        if crop == "TOMATO": tom_left -= 1
-                        break
+                        tasks[(x, y, "PLANT")] = (0, crop); budget[crop] -= 1; break
 
         # ---------------- assignment: sticky targets + global nearest-first matching
         acts = [["PASS"] for _ in units]
@@ -206,8 +196,6 @@ class Planner:
             maturing = sum(1 for y, row in enumerate(tiles) for x, tl in enumerate(row) if isinstance(tl, dict) and tl.get("kind") == "PLANT"
                            and not CROPS[tl["crop"]].get("ongoing") and day - tl["planted_day"] >= CROPS[tl["crop"]].get("max_yield_day", 99) - 1)
             want = len(empties) + sum(1 for k in tasks if k[2] == "DIG") + maturing - sum(seeds.values())
-            if want_tomato and seeds.get("TOMATO", 0) < 4 and money > 1000:
-                market.append(["BUY_SEED", "TOMATO", min(8, P["tomato_tiles"] - n_tomato)])
             if want > 0 and money > 300:
                 crop = "CARROT" if prices.get("CARROT", 0) >= 1.5 * BASE["CARROT"] and day <= 26 else "WHEAT"
                 market.append(["BUY_SEED", crop, min(want, 30)])
@@ -215,14 +203,6 @@ class Planner:
         final = step >= 716
         for item in ("WOOL", "MILK", "STRAWBERRY", "MELON", "EGG", "TOMATO", "CARROT", "FERTILIZER", "WHEAT"):
             q = shed.get(item, 0)
-            if item == "TOMATO" and not final:
-                # hold for the scarcity premium, then trickle 6 units at three hours a day so the drain keeps the price up;
-                # release stock early only under shed pressure; the final day dumps the rest
-                pressure = sum(shed.values()) > 85
-                if day >= 29: q = min(q, 15)
-                elif (day >= 26 and prices.get("TOMATO", 0) >= 150 and hour in (2, 10, 18)) or prices.get("TOMATO", 0) >= P["tom_sell_px"]: q = min(q, 6)
-                elif pressure: q = min(q, 6)
-                else: q = 0
             if item == "WHEAT" and not final: q = q - (n_animals + 4)  # one day of feed stays home
             if item == "FERTILIZER" and not final: q = q - (36 if day <= 27 else 0)  # keep a stock for fertilizing (33 strawberries / 3 days)
             if q <= 0: continue

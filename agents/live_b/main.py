@@ -13,7 +13,7 @@ def _load(path, name):
 class Live:
     def __init__(self, folder):
         self.r = _load(folder / "router.py", "live_b_router"); self.policy = self.r.Policy(folder)
-        self.pl = _load(folder / "planner.py", "live_b_planner")
+        self.pl = _load(folder / ("planner2.py" if os.environ.get("LB_PLANNER", "patrol") == "patrol" else "planner.py"), "live_b_planner")
         self.planner = self.pl.Planner()
 
     def act(self, obs):
