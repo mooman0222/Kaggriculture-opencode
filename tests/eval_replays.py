@@ -37,6 +37,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("agent"); ap.add_argument("--glob", required=True); ap.add_argument("--lineage", default="267f5f1e")
     ap.add_argument("--n", type=int, default=40); ap.add_argument("--skip-mirror", action="store_true")
+    ap.add_argument("--team", help="席の選択を系統ハッシュではなくチーム名で行う")
     ap.add_argument("--base", help="対照エージェント。指定時は recorded ではなく同席で base を走らせた結果と比較する")
     a = ap.parse_args()
     cand = load(a.agent); base = load(a.base) if a.base else None
@@ -47,7 +48,7 @@ def main():
         seen.add(eid)
         hs = [h72(r["steps"], s) for s in (0, 1)]
         for me in (0, 1):
-            if hs[me] == a.lineage:
+            if (r["info"]["TeamNames"][me] == a.team) if a.team else (hs[me] == a.lineage):
                 opp = LIN.get(hs[1 - me], "other:" + r["info"]["TeamNames"][1 - me])
                 if a.skip_mirror and opp == "SR0908": continue
                 rows.append((f, me, opp, r)); break
