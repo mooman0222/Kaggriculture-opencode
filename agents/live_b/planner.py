@@ -66,7 +66,13 @@ class Planner:
                 elif tl.get("kind") == "PLANT":
                     cd = CROPS[tl["crop"]]; age = day - tl["planted_day"]
                     if not tl["watered_today"]:
-                        tasks[(x, y, "WATER")] = (0 if tl.get("consecutive_unwatered", 0) >= 1 or hour >= 14 else 1, None)
+                        survive = tl.get("consecutive_unwatered", 0) >= 1          # a second dry day kills the plant
+                        if cd.get("ongoing"):
+                            pays = tl.get("fertilized_until_day", -1) >= day        # fertilizer doubles only a watered production
+                        else:
+                            pays = (cd.get("max_yield_day", 99) + 1) // 2 <= age <= cd.get("max_yield_day", 99)  # bonus window
+                        if survive or pays:
+                            tasks[(x, y, "WATER")] = (0 if survive or hour >= 14 else 1, None)
                     ripe = tl.get("yield_units", 0) > 0 and (cd.get("ongoing") or age >= cd.get("max_yield_day", 99) or day >= 29)
                     if ripe: tasks[(x, y, "HARVEST")] = (1, None)
                     # fertilizer doubles every watered production of an ongoing crop (3 days per unit)
@@ -74,6 +80,11 @@ class Planner:
                         tasks[(x, y, "FERTILIZE")] = (1, "FERTILIZER")
                 elif tl.get("kind") == "WEED":
                     tasks[(x, y, "DIG")] = (1 if day <= P["replant_until_day"] else 3, None)
+        for i in range(len(units)):
+            held = sum(v for k, v in inv(i).items() if k not in ("WHEAT", "FERTILIZER") and v > 0)
+            near = dist(units[i], min(SHED_TILES, key=lambda s_: dist(units[i], s_)))
+            if (held >= 6 and near <= 3) or (held > 0 and hour >= 21 and near <= 2) or held >= 12:
+                tasks[("DROP", i, "DROP")] = (1, None)
         if day <= P["replant_until_day"]:
             budget = dict(seeds)
             for (x, y) in empties:
@@ -84,20 +95,32 @@ class Planner:
         # ---------------- assignment: sticky targets + global nearest-first matching
         acts = [["PASS"] for _ in units]
         if hour <= 1: self.target = {}
-        if hour == 1 and n_animals and shed.get("WHEAT", 0) > 0:
-            per = 6; k = min(len(units) - 1, math.ceil(n_animals / per)); left = shed.get("WHEAT", 0)
-            for i in range(1, 1 + k):
-                if units[i] in SHED_TILES and left > 0:
-                    q = min(per, left); acts[i] = ["PICKUP", "WHEAT", q]; left -= q
-            fert = shed.get("FERTILIZER", 0); want = sum(1 for kk in tasks if kk[2] == "FERTILIZE")
-            for i in range(1 + k, len(units)):
-                if fert <= 0 or want <= 0: break
-                if units[i] in SHED_TILES and acts[i] == ["PASS"]:
-                    q = min(4, fert, want); acts[i] = ["PICKUP", "FERTILIZER", q]; fert -= q; want -= q
         assigned = set()
-        quads = sorted({(x // 5, y // 5) for y, row in enumerate(tiles) for x, tl in enumerate(row) if tl != "LOCKED"})
         if hour <= 1 or len(getattr(self, "zone", {})) != len(units):
-            self.zone = {i: quads[i % len(quads)] for i in range(len(units))}
+            work = [(x, y) for y, row in enumerate(tiles) for x, tl in enumerate(row) if tl != "LOCKED" and not (isinstance(tl, dict) and tl.get("kind") in ("COOP", "PASTURE") and "animal" not in tl)]
+            K = max(1, len(units) - 1)
+            # deterministic k-means (few iterations) seeded on a serpentine order of the work tiles
+            work.sort(key=lambda t: (t[1] // 3, t[0] if (t[1] // 3) % 2 == 0 else -t[0]))
+            cents = [work[int(k * len(work) / K)] for k in range(K)] if work else []
+            groups = {}
+            for _ in range(6):
+                groups = {k: [] for k in range(K)}
+                for t in work: groups[min(range(K), key=lambda k: dist(t, cents[k]))].append(t)
+                cents = [(sum(a for a, _ in g_) / len(g_), sum(b for _, b in g_) / len(g_)) if g_ else cents[k] for k, g_ in groups.items()]
+            self.zone_tiles = {i + 1: set(groups.get(i, [])) for i in range(K)}
+            self.zone_tiles[0] = set()  # farmer: free agent
+        if hour == 1 and n_animals and shed.get("WHEAT", 0) > 0:
+            left = shed.get("WHEAT", 0)
+            for i in range(1, len(units)):
+                na = sum(1 for (x, y) in self.zone_tiles.get(i, ()) if isinstance(tiles[y][x], dict) and "animal" in tiles[y][x])
+                if na and units[i] in SHED_TILES and left > 0:
+                    q = min(na + 1, left); acts[i] = ["PICKUP", "WHEAT", q]; left -= q
+            fert = shed.get("FERTILIZER", 0)
+            for i in range(1, len(units)):
+                if acts[i] != ["PASS"] or units[i] not in SHED_TILES or fert <= 0: continue
+                nf = sum(1 for (x, y) in self.zone_tiles.get(i, ()) if isinstance(tiles[y][x], dict) and tiles[y][x].get("kind") == "PLANT"
+                         and CROPS[tiles[y][x]["crop"]].get("ongoing") and tiles[y][x].get("fertilized_until_day", -1) < day)
+                if nf: q = min(nf, 3, fert); acts[i] = ["PICKUP", "FERTILIZER", q]; fert -= q
         def can(i, key):
             op = key[2]
             if op == "FEED" and inv(i).get("WHEAT", 0) <= 0: return False
@@ -115,18 +138,22 @@ class Planner:
             if acts[i] != ["PASS"] or i in self.target: continue
             for key, (tier, need) in tasks.items():
                 if key in assigned or not can(i, key): continue
-                zone_pen = 0 if (key[0] // 5, key[1] // 5) == self.zone.get(i) else 5
-                d = dist(units[i], key[:2])
-                pairs.append((-10 if d == 0 else d + 4 * tier + zone_pen, tier, i, key))  # finish work on the tile you stand on
-        pairs.sort()
-        for sc, tier, i, key in pairs:
+                if key[0] == "DROP" and key[1] != i: continue
+                zt = self.zone_tiles.get(i, set())
+                zone_pen = 0 if (not zt or key[0] == "DROP" or key[:2] in zt) else 12
+                d = dist(units[i], min(SHED_TILES, key=lambda s_: dist(units[i], s_))) if key[0] == "DROP" else dist(units[i], key[:2])
+                pairs.append((-10 if d == 0 else d + 4 * tier + zone_pen, tier, i, str(key), key))  # finish work on the tile you stand on
+        pairs.sort(key=lambda x: x[:4])
+        for sc, tier, i, _k, key in pairs:
             if i in self.target or key in assigned: continue
             self.target[i] = key; assigned.add(key)
+        def tgt_of(i, key):
+            return min(SHED_TILES, key=lambda s_: dist(units[i], s_)) if key[0] == "DROP" else key[:2]
         for i, key in self.target.items():
             if i >= len(units) or acts[i] != ["PASS"]: continue
-            mv = step_toward(units[i], key[:2])
-            acts[i] = mv if mv else ([key[2], tasks[key][1]] if key[2] == "PLANT" else [key[2]])
-        done_now = {i for i, key in self.target.items() if i < len(units) and units[i] == key[:2]}
+            mv = step_toward(units[i], tgt_of(i, key))
+            acts[i] = mv if mv else (["DROP"] if key[0] == "DROP" else ([key[2], tasks[key][1]] if key[2] == "PLANT" else [key[2]]))
+        done_now = {i for i, key in self.target.items() if i < len(units) and units[i] == tgt_of(i, key)}
         for i in done_now: self.target.pop(i, None)
         # feeders: refill wheat when animals still need feeding and nobody carries wheat
         need_feed = sum(1 for k in tasks if k[2] == "FEED")
