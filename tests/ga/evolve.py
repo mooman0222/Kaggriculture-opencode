@@ -102,49 +102,94 @@ def mut_fertilize(tape, rng):
     acts[u] = ["FERTILIZE"]; tape[t]["farmer"] = acts[0]; tape[t]["hands"] = acts[1:]; return True
 
 
-OPS = [mut_sell_shift, mut_sell_qty, mut_sell_split, mut_crop_swap, mut_sell_delete, mut_fertilize]
+def mut_buy_earlier(tape, rng):
+    """Move a BUY_ANIMAL / BUY_LAND / BUY_SEED order 1..8 turns earlier (cash permitting; the engine refuses silently)."""
+    buys = [(t, i) for t, a in enumerate(tape) for i, o in enumerate(a.get("market") or []) if o and o[0] in ("BUY_ANIMAL", "BUY_LAND", "BUY_SEED") and t > 8]
+    if not buys: return False
+    t, i = rng.choice(buys); o = tape[t]["market"][i]; nt = t - rng.randint(1, 8)
+    if len(tape[nt]["market"]) >= 10: return False
+    tape[t]["market"][i] = []; tape[nt]["market"].append(list(o)); return True
+
+
+_WORLD_STREAMS = None
+
+
+def world_streams():
+    """Recorded SR0909-family streams grouped by the first two shops (splice donors for the same world)."""
+    global _WORLD_STREAMS
+    if _WORLD_STREAMS is None:
+        import json
+        from collections import defaultdict
+        _WORLD_STREAMS = defaultdict(list)
+        for p in json.load(open("tmp/ga/pool.json")):
+            if p["lineage"] == "SR0909": _WORLD_STREAMS[tuple(p["shops"][:2])].append(p["stream"])
+    return _WORLD_STREAMS
+
+
+def mut_world_splice(tapes, rng):
+    """Replace one plan's continuation (from a 72-step boundary) with a donor recorded in the same world."""
+    import sys
+    sys.path.insert(0, "tests/ga"); from fitness import SHOP_PLANS
+    ws = world_streams()
+    worlds = [w for w in ws if w in SHOP_PLANS or True]
+    if not worlds: return False
+    w = rng.choice(worlds); plan = SHOP_PLANS.get(w, 0); donor = rng.choice(ws[w])
+    cut = rng.choice([144, 216, 288, 360, 432])
+    tapes[plan] = copy.deepcopy(tapes[plan][:cut]) + copy.deepcopy(donor[cut:648]) + copy.deepcopy(tapes[plan][648:])
+    return True
+
+
+OPS = [mut_sell_shift, mut_sell_qty, mut_sell_split, mut_crop_swap, mut_sell_delete, mut_fertilize, mut_buy_earlier]
 
 
 def mutate(tapes, rng, n_ops):
-    child = copy.deepcopy(tapes)
-    # opening (0..143) is shared: mutate all tapes together; later steps: one plan
+    child = list(tapes)  # copy-on-write: deep-copy only the tapes we touch
+    touched = set()
     for _ in range(n_ops):
+        if rng.random() < 0.08:
+            if 0 not in touched: child[0] = copy.deepcopy(child[0]); touched.add(0)
+            mut_world_splice(child, rng); touched.update(range(len(child))); continue
         op = rng.choice(OPS)
-        if rng.random() < 0.3:
-            # shared opening: apply the same mutation to every tape via a common seed
-            snap = copy.deepcopy(child[0]); rs = rng.random()
-            r2 = random.Random(rs)
-            trial = copy.deepcopy(child[0][:144])
-            if op(trial + child[0][144:], r2):
-                pass
-            # simpler: mutate tape0 and copy its first 144 steps to all others
-            r3 = random.Random(rs)
-            if op(child[0], r3):
-                for k in range(1, len(child)): child[k][:144] = copy.deepcopy(child[0][:144])
+        if rng.random() < 0.3:  # shared opening: mutate tape 0 before step 144 and mirror it into every plan
+            if 0 not in touched: child[0] = copy.deepcopy(child[0]); touched.add(0)
+            before = [copy.deepcopy(a) for a in child[0][:144]]
+            if op(child[0], rng):
+                for k in range(1, len(child)):
+                    if k not in touched: child[k] = copy.deepcopy(child[k]); touched.add(k)
+                    child[k][:144] = copy.deepcopy(child[0][:144])
         else:
-            k = rng.randrange(len(child)); op(child[k], rng)
+            k = rng.randrange(len(child))
+            if k not in touched: child[k] = copy.deepcopy(child[k]); touched.add(k)
+            op(child[k], rng)
     return child
+
+
+def wscore(w):
+    return 0.6 * w["sr0909_base"]["mean"] + 0.4 * w["sr0909_live"]["mean"] + 2000 * (0.6 * w["sr0909_base"]["wr"] + 0.4 * w["sr0909_live"]["wr"])
 
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--init", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--iters", type=int, default=200); ap.add_argument("--lam", type=int, default=16); ap.add_argument("--ops", type=int, default=2); ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--top", type=int, default=2, help="L0 上位いくつをライブ層付き L1 で確認するか")
     a = ap.parse_args(); rng = random.Random(a.seed)
-    f = Fitness(split="train"); fh = Fitness(split="holdout"); best = json.load(open(a.init)); br = f.evaluate(best); score = lambda r: r["score"]
-    bs = score(br); hr = fh.evaluate(best)
-    fmt = lambda r: f"score {r['score']:+.0f} wmean {r['weighted']:+.0f} wwr {r['wwr']:.2f} live {r['lin_mean'].get('SR0909live',0):+.0f}/{r['lin_wr'].get('SR0909live',0):.2f} e055 {r['lin_mean'].get('E055live',0):+.0f}/{r['lin_wr'].get('E055live',0):.2f} copies {r['lin_mean'].get('SR0909',0):+.0f}"
-    print(f"init train {fmt(br)} | holdout {fmt(hr)} (n {len(f.pool)}/{len(fh.pool)})", flush=True)
+    sys.path.insert(0, "tests/ga"); from wrapped import evaluate_wrapped
+    f = Fitness(split="train"); fh = Fitness(split="holdout")
+    best = json.load(open(a.init)); bw = evaluate_wrapped(best); bws = wscore(bw)
+    fmtw = lambda w: f"base {w['sr0909_base']['mean']:+.0f}/{w['sr0909_base']['wr']:.2f} e055 {w['sr0909_live']['mean']:+.0f}/{w['sr0909_live']['wr']:.2f}"
+    print(f"init wrapped {fmtw(bw)} score {bws:+.0f}", flush=True)
     t0 = time.time(); acc = 0
     for it in range(a.iters):
         cands = [mutate(best, rng, a.ops) for _ in range(a.lam)]
-        scored = [(score(f.evaluate(c)), c) for c in cands]
-        s, c = max(scored, key=lambda x: x[0])
-        if s > bs + 1:
-            best, bs = c, s; acc += 1; r = f.evaluate(best); hr = fh.evaluate(best)
-            print(f"it {it} ACCEPT train {fmt(r)} | holdout {fmt(hr)} [{time.time()-t0:.0f}s]", flush=True)
-            json.dump(best, open(a.out, "w"))
-        elif it % 25 == 0:
-            print(f"it {it} best {bs:+.0f} [{time.time()-t0:.0f}s]", flush=True)
+        scored = sorted(((f.evaluate(c)["score"], i) for i, c in enumerate(cands)), reverse=True)
+        for s0, i in scored[: a.top]:
+            w = evaluate_wrapped(cands[i]); ws = wscore(w)
+            if ws > bws + 25:
+                best, bws, bw = cands[i], ws, w; acc += 1
+                hold = evaluate_wrapped(best, seeds=range(2100, 2112))
+                print(f"it {it} ACCEPT wrapped {fmtw(w)} score {bws:+.0f} | holdout {fmtw(hold)} [{time.time()-t0:.0f}s]", flush=True)
+                json.dump(best, open(a.out, "w")); break
+        if it % 20 == 0: print(f"it {it} best {bws:+.0f} [{time.time()-t0:.0f}s]", flush=True)
     print("accepted", acc)
 
 
