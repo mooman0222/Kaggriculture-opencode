@@ -49,15 +49,15 @@ def play(seed, agents, mods, shops=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("agent"); ap.add_argument("--replays"); ap.add_argument("--team"); ap.add_argument("--base")
-    ap.add_argument("--vs"); ap.add_argument("--games", type=int, default=24); ap.add_argument("--seed0", type=int, default=0); ap.add_argument("--n", type=int, default=10000)
+    ap.add_argument("--vs"); ap.add_argument("--shops", help="固定するショップ列 (カンマ区切り、8個)"); ap.add_argument("--games", type=int, default=24); ap.add_argument("--seed0", type=int, default=0); ap.add_argument("--n", type=int, default=10000)
     a = ap.parse_args()
     cand, cmod = load(a.agent)
     t0 = time.time()
     if a.vs:
-        opp, omod = load(a.vs); tot = w = n = 0; rows = []
+        opp, omod = load(a.vs); tot = w = n = 0; rows = []; shops = a.shops.split(",") if a.shops else None
         for seed in range(a.seed0, a.seed0 + a.games // 2):
-            r0, r1, _ = play(seed, [cand, opp], [cmod, omod]); m0 = r0 - r1
-            r0, r1, _ = play(seed, [opp, cand], [omod, cmod]); m1 = r1 - r0
+            r0, r1, _ = play(seed, [cand, opp], [cmod, omod], shops); m0 = r0 - r1
+            r0, r1, _ = play(seed, [opp, cand], [omod, cmod], shops); m1 = r1 - r0
             rows.append((seed, m0, m1)); tot += m0 + m1; n += 2; w += (m0 > 0) + (m1 > 0)
         print("\n".join(f"seed {s:>5} as-p0 {m0:>+8,.0f} as-p1 {m1:>+8,.0f} pair {m0+m1:>+8,.0f}" for s, m0, m1 in rows))
         print(f"{a.agent} vs {a.vs}: {w}W{n-w}L avg {tot/n:+,.0f} min-pair {min(m0+m1 for _,m0,m1 in rows):+,.0f}  [{time.time()-t0:.1f}s]")
