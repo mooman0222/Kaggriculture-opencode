@@ -20,6 +20,7 @@ P = {
     "feed_reserve": int(os.environ.get("LB_FEED", "40")),
     "sell_hold": float(os.environ.get("LB_HOLD", "0.0")),   # sell if price >= hold*base (0 = always sell)
     "replant_until_day": int(os.environ.get("LB_REPLANT", "27")),
+    "herd": int(os.environ.get("LB_HERD", "5")),
 }
 
 
@@ -36,7 +37,7 @@ def step_toward(pos, tgt):
 
 class Planner:
     def __init__(self):
-        self.day = -1; self.target = {}
+        self.day = -1; self.target = {}; self.herders = set()
 
     def act(self, obs, tape_action=None):
         step, seat = int(obs["step"]), int(obs["player"])
@@ -59,9 +60,9 @@ class Planner:
                     empties.append((x, y)); continue
                 if "animal" in tl:
                     n_animals += 1
-                    if not tl["fed_today"]: tasks[(x, y, "FEED")] = (0, "WHEAT")
+                    if not tl["fed_today"]: tasks[(x, y, "FEED")] = (-1, "WHEAT")  # an unfed animal skips production; two dry days and it escapes
                     if tl.get("yield_units", 0) > 0: tasks[(x, y, "HARVEST")] = (0 if tl["yield_units"] >= 3 else 1, None)
-                    if not tl["cared_today"]: tasks[(x, y, "CARE")] = (1, None)  # care bonus doubles the next production
+                    if not tl["cared_today"]: tasks[(x, y, "CARE")] = (0, None)  # every missed care day is a lost unit at the next production
                     if tl["fertilizer_available"]: tasks[(x, y, "COLLECT_FERTILIZER")] = (1, None)
                 elif tl.get("kind") == "PLANT":
                     cd = CROPS[tl["crop"]]; age = day - tl["planted_day"]
@@ -72,43 +73,53 @@ class Planner:
                         else:
                             pays = (cd.get("max_yield_day", 99) + 1) // 2 <= age <= cd.get("max_yield_day", 99)  # bonus window
                         if survive or pays:
-                            tasks[(x, y, "WATER")] = (0 if survive or hour >= 14 else 1, None)
-                    ripe = tl.get("yield_units", 0) > 0 and (cd.get("ongoing") or age >= cd.get("max_yield_day", 99) or day >= 29)
-                    if ripe: tasks[(x, y, "HARVEST")] = (1, None)
-                    # fertilizer doubles every watered production of an ongoing crop (3 days per unit)
-                    if cd.get("ongoing") and tl.get("fertilized_until_day", -1) < day and day <= 27:
-                        tasks[(x, y, "FERTILIZE")] = (1, "FERTILIZER")
+                            tasks[(x, y, "WATER")] = (-1 if survive else 0, None)  # a missed survival day is a lost tile
+                    yu = tl.get("yield_units", 0)
+                    ripe = yu > 0 and (cd.get("ongoing") or age >= cd.get("max_yield_day", 99) or (yu >= 3 and age >= 3) or day >= 29)
+                    if ripe: tasks[(x, y, "HARVEST")] = (0 if (cd.get("ongoing") and yu >= 2) or day >= 29 else 1, None)  # held yield caps at 4
+                    # fertilizer: doubles a watered production (ongoing) or the daily bonus (one-time, in window)
+                    in_window = (not cd.get("ongoing")) and (cd.get("max_yield_day", 99) + 1) // 2 <= age + 1 <= cd.get("max_yield_day", 99)
+                    if (cd.get("ongoing") or in_window) and tl.get("fertilized_until_day", -1) < day and day <= 27:
+                        tasks[(x, y, "FERTILIZE")] = (0 if cd.get("ongoing") else 1, "FERTILIZER")
                 elif tl.get("kind") == "WEED":
-                    tasks[(x, y, "DIG")] = (1 if day <= P["replant_until_day"] else 3, None)
+                    tasks[(x, y, "DIG")] = (0 if day <= P["replant_until_day"] else 3, None)  # every weed tile-day is lost production
         for i in range(len(units)):
             held = sum(v for k, v in inv(i).items() if k not in ("WHEAT", "FERTILIZER") and v > 0)
             near = dist(units[i], min(SHED_TILES, key=lambda s_: dist(units[i], s_)))
-            if (held >= 6 and near <= 3) or (held > 0 and hour >= 21 and near <= 2) or held >= 12:
-                tasks[("DROP", i, "DROP")] = (1, None)
+            last_day = day >= 29 and hour >= 24 - 2 - near  # the last day: bring everything home in time to sell
+            if (held >= 6 and near <= 3) or (held > 0 and hour >= 21 and near <= 2) or held >= 12 or (last_day and held > 0):
+                tasks[("DROP", i, "DROP")] = (-1 if last_day else 1, None)
         if day <= P["replant_until_day"]:
             budget = dict(seeds)
             for (x, y) in empties:
                 for crop in ("TOMATO", "STRAWBERRY", "CARROT", "WHEAT"):
                     if budget.get(crop, 0) > 0:
-                        tasks[(x, y, "PLANT")] = (1, crop); budget[crop] -= 1; break
+                        tasks[(x, y, "PLANT")] = (0, crop); budget[crop] -= 1; break
 
         # ---------------- assignment: sticky targets + global nearest-first matching
         acts = [["PASS"] for _ in units]
         if hour <= 1: self.target = {}
         assigned = set()
-        if hour <= 1 or len(getattr(self, "zone", {})) != len(units):
-            work = [(x, y) for y, row in enumerate(tiles) for x, tl in enumerate(row) if tl != "LOCKED" and not (isinstance(tl, dict) and tl.get("kind") in ("COOP", "PASTURE") and "animal" not in tl)]
+        if hour <= 1 or len(getattr(self, "zone_tiles", {})) != len(units):
             K = max(1, len(units) - 1)
-            # deterministic k-means (few iterations) seeded on a serpentine order of the work tiles
-            work.sort(key=lambda t: (t[1] // 3, t[0] if (t[1] // 3) % 2 == 0 else -t[0]))
-            cents = [work[int(k * len(work) / K)] for k in range(K)] if work else []
-            groups = {}
-            for _ in range(6):
-                groups = {k: [] for k in range(K)}
-                for t in work: groups[min(range(K), key=lambda k: dist(t, cents[k]))].append(t)
-                cents = [(sum(a for a, _ in g_) / len(g_), sum(b for _, b in g_) / len(g_)) if g_ else cents[k] for k, g_ in groups.items()]
-            self.zone_tiles = {i + 1: set(groups.get(i, [])) for i in range(K)}
-            self.zone_tiles[0] = set()  # farmer: free agent
+            animals_t = sorted(((x, y) for y, row in enumerate(tiles) for x, tl in enumerate(row) if isinstance(tl, dict) and "animal" in tl), key=lambda t: (t[0] // 3, t[1], t[0]))
+            plants_t = [(x, y) for y, row in enumerate(tiles) for x, tl in enumerate(row) if tl != "LOCKED" and (x, y) not in set(animals_t)
+                        and not (isinstance(tl, dict) and tl.get("kind") in ("COOP", "PASTURE"))]
+            M = min(K, max(1, math.ceil(len(animals_t) / P["herd"]))) if animals_t else 0  # <= 5 animals per herder (feed+care+collect+harvest fit in a day)
+            self.zone_tiles = {0: set()}; self.herders = set(range(1, 1 + M))
+            for m in range(M):
+                self.zone_tiles[1 + m] = set(animals_t[m::M])
+            Kp = K - M
+            if Kp > 0 and plants_t:
+                plants_t.sort(key=lambda t: (t[1] // 3, t[0] if (t[1] // 3) % 2 == 0 else -t[0]))
+                cents = [plants_t[int(k * len(plants_t) / Kp)] for k in range(Kp)]
+                groups = {}
+                for _ in range(6):
+                    groups = {k: [] for k in range(Kp)}
+                    for t in plants_t: groups[min(range(Kp), key=lambda k: dist(t, cents[k]))].append(t)
+                    cents = [(sum(a for a, _ in g_) / len(g_), sum(b for _, b in g_) / len(g_)) if g_ else cents[k] for k, g_ in groups.items()]
+                for k in range(Kp): self.zone_tiles[1 + M + k] = set(groups.get(k, []))
+            for i in range(len(units)): self.zone_tiles.setdefault(i, set())
         if hour == 1 and n_animals and shed.get("WHEAT", 0) > 0:
             left = shed.get("WHEAT", 0)
             for i in range(1, len(units)):
@@ -119,8 +130,8 @@ class Planner:
             for i in range(1, len(units)):
                 if acts[i] != ["PASS"] or units[i] not in SHED_TILES or fert <= 0: continue
                 nf = sum(1 for (x, y) in self.zone_tiles.get(i, ()) if isinstance(tiles[y][x], dict) and tiles[y][x].get("kind") == "PLANT"
-                         and CROPS[tiles[y][x]["crop"]].get("ongoing") and tiles[y][x].get("fertilized_until_day", -1) < day)
-                if nf: q = min(nf, 3, fert); acts[i] = ["PICKUP", "FERTILIZER", q]; fert -= q
+                         and tiles[y][x].get("fertilized_until_day", -1) <= day and CROPS[tiles[y][x]["crop"]].get("ongoing"))
+                if nf: q = min(nf, 8, fert); acts[i] = ["PICKUP", "FERTILIZER", q]; fert -= q
         def can(i, key):
             op = key[2]
             if op == "FEED" and inv(i).get("WHEAT", 0) <= 0: return False
@@ -140,7 +151,8 @@ class Planner:
                 if key in assigned or not can(i, key): continue
                 if key[0] == "DROP" and key[1] != i: continue
                 zt = self.zone_tiles.get(i, set())
-                zone_pen = 0 if (not zt or key[0] == "DROP" or key[:2] in zt) else 12
+                herder = i in self.herders
+                zone_pen = 0 if (not zt or key[0] == "DROP" or key[:2] in zt or (key[2] == "FEED" and hour >= 14)) else (4 if herder else 12)
                 d = dist(units[i], min(SHED_TILES, key=lambda s_: dist(units[i], s_))) if key[0] == "DROP" else dist(units[i], key[:2])
                 pairs.append((-10 if d == 0 else d + 4 * tier + zone_pen, tier, i, str(key), key))  # finish work on the tile you stand on
         pairs.sort(key=lambda x: x[:4])
@@ -174,22 +186,25 @@ class Planner:
 
         # ---------------- market
         if hour == 0:
-            market += [["HIRE"] for _ in range(P["hands"])]
+            market += [["HIRE"] for _ in range(min(P["hands"], 10))]  # the 10-order cap: at most ten hires at dawn
         # feed wheat: keep a reserve in the shed
         wheat_need = n_animals + 4 - shed.get("WHEAT", 0) - sum(inv(i).get("WHEAT", 0) for i in range(len(units)))
         if wheat_need > 0 and hour in (0, 23):
             market.append(["BUY_PRODUCT", "WHEAT", min(wheat_need, 30)])  # grown wheat feeds the herd; buy only the shortfall
         # seeds for empties (cheap wheat backbone; premium crops handled by strategy later)
         if empties and day <= P["replant_until_day"] and hour in (0, 6, 12, 18):
-            want = len(empties) + sum(1 for k in tasks if k[2] == "DIG") - sum(seeds.values())
+            maturing = sum(1 for y, row in enumerate(tiles) for x, tl in enumerate(row) if isinstance(tl, dict) and tl.get("kind") == "PLANT"
+                           and not CROPS[tl["crop"]].get("ongoing") and day - tl["planted_day"] >= CROPS[tl["crop"]].get("max_yield_day", 99) - 1)
+            want = len(empties) + sum(1 for k in tasks if k[2] == "DIG") + maturing - sum(seeds.values())
             if want > 0 and money > 300:
                 crop = "CARROT" if prices.get("CARROT", 0) >= 1.5 * BASE["CARROT"] and day <= 26 else "WHEAT"
                 market.append(["BUY_SEED", crop, min(want, 30)])
         # sells
+        final = step >= 716
         for item in ("WOOL", "MILK", "STRAWBERRY", "MELON", "EGG", "TOMATO", "CARROT", "FERTILIZER", "WHEAT"):
             q = shed.get(item, 0)
-            if item == "WHEAT": q = q - (2 * n_animals + 6)
-            if item == "FERTILIZER": q = q - (12 if day <= 27 else 0)  # keep a stock for fertilizing
+            if item == "WHEAT" and not final: q = q - (n_animals + 4)  # one day of feed stays home
+            if item == "FERTILIZER" and not final: q = q - (36 if day <= 27 else 0)  # keep a stock for fertilizing (33 strawberries / 3 days)
             if q <= 0: continue
             if prices.get(item, 0) < 2: continue
             if item != "WHEAT" and prices[item] < P["sell_hold"] * BASE[item] and day < 28: continue
