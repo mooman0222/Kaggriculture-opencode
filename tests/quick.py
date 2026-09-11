@@ -1,7 +1,8 @@
 """1試合の直接対決: .venv/bin/python tests/quick.py A.py B.py SEED"""
-import importlib.util, sys
+import importlib.util, sys, os
 from kaggle_environments import make
 def load(p):
+    d=os.path.dirname(os.path.abspath(p)); sys.path.insert(0,d)
     s=importlib.util.spec_from_file_location('m'+str(abs(hash(p))),p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return getattr(m,'agent_entry',m.agent)
 A=load(sys.argv[1]); B=load(sys.argv[2]); seed=int(sys.argv[3])
 env=make("kaggriculture",configuration={"episodeSteps":720}); env.info["seed"]=seed; env.run([A,B])
