@@ -1,12 +1,12 @@
 """ライブエージェントを 1 試合走らせ、例外を表面化し日別サマリ (現金・雇用・畑・家畜・注文拒否) を出す。
-使い方: LE_DEBUG=1 .venv/bin/python tests/live_debug.py agents/live_e/main.py [--vs OPP] [--seed N] [--shops A,B,...]"""
+使い方: LE_DEBUG=1 .venv/bin/python tests/live_debug.py agents/e060/main.py [--vs OPP] [--seed N] [--shops A,B,...]"""
 import argparse, importlib.util, json, os, sys, hashlib, time, traceback
 from collections import defaultdict
 import kagsim
 def load(p):
     d=os.path.dirname(os.path.abspath(p)); sys.path.insert(0,d)
     s=importlib.util.spec_from_file_location("dbg_"+hashlib.md5(p.encode()).hexdigest()[:8],p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
-ap=argparse.ArgumentParser(); ap.add_argument("agent"); ap.add_argument("--vs",default="tmp/e058/agents/ahmedberatozer_kaggriculture-v41-review-candidate/main.py"); ap.add_argument("--seed",type=int,default=5000); ap.add_argument("--shops"); ap.add_argument("--seat",type=int,default=0)
+ap=argparse.ArgumentParser(); ap.add_argument("agent"); ap.add_argument("--vs",default="third_party/public_agents/v41/main.py"); ap.add_argument("--seed",type=int,default=5000); ap.add_argument("--shops"); ap.add_argument("--seat",type=int,default=0)
 a=ap.parse_args(); me=load(a.agent); opp=load(a.vs); seat=a.seat
 g=kagsim.Game(a.seed) if not a.shops else kagsim.Game(a.seed,720,a.shops.split(","))
 day=defaultdict(lambda: defaultdict(int)); tmax=0; sellq={'me':defaultdict(int),'op':defaultdict(int)}; sellv={'me':defaultdict(float),'op':defaultdict(float)}

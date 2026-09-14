@@ -7,8 +7,7 @@ import kagsim
 
 WRAP_DIR = Path("agents/e058")
 POOL = "tmp/e058/pool_e057.json"
-OPPS = {"v41": "tmp/e058/agents/ahmedberatozer_kaggriculture-v41-review-candidate",
-        "my": "tmp/e058/agents/ahmedberatozer_more-yield-smarter-labor"}
+OPPS = {"v41": "third_party/public_agents/v41", "my": "third_party/public_agents/more_yield"}
 PASS = {"farmer": ["PASS"], "hands": [], "market": []}
 
 

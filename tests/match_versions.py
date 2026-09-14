@@ -1,16 +1,16 @@
 """相手の版特定: 実戦リプレイを kagsim で再現し (我々の席 = 自分の提出物、相手席 = 候補 NB)、記録された相手行動と最初にずれる step を出す。None = 719 手完全再現。
-使い方: .venv/bin/python tests/match_versions.py --replays 'tmp/e058/e057_battles/episode-*.json' --me agents/live_d --cands DIR1 DIR2 ... [--team MMN0222] [--out res.json]"""
+使い方: .venv/bin/python tests/match_versions.py --replays 'tmp/e058/e057_battles/episode-*.json' --me agents/e060 --cands DIR1 DIR2 ... (既定: third_party/public_agents/*) [--team MMN0222] [--out res.json]"""
 import json,hashlib,glob,os,sys,importlib.util,collections
 from concurrent.futures import ProcessPoolExecutor
 import kagsim
-_DEFAULT_CANDS=["tmp/e058/agents/ahmedberatozer_kaggriculture-v38-smarter-feed-stronger-margins","tmp/e058/agents/ahmedberatozer_kaggriculture-v39-ready-before-the-rush","tmp/e058/agents/ahmedberatozer_more-yield-smarter-labor","tmp/e058/agents/aurax7_kaggriculture-shop-router-reactive-v4","tmp/e058/agents/guru_master_engine_v3","tmp/e058/agents/pilkwang_structured_economic_policy","tmp/e058/agents/yhay81_shop-router-0913","tmp/e058/agents/ahmedberatozer_kaggriculture-v41-review-candidate"]
+_DEFAULT_CANDS=["third_party/public_agents/"+d for d in ("v38","v39","more_yield","aurax7_v4","guru_v3","shop_router_0913","v41")]
 def load(d,name):
     p=os.path.join(d,"main.py"); sys.path.insert(0,d)
     s=importlib.util.spec_from_file_location(name,p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
 def reset(m):
     for k in ("_LIVE","_POLICY","_ROUTER","_IMPL"):
         pass
-CANDS=[]; ME="agents/live_d"; TEAM="MMN0222"
+CANDS=[]; ME="agents/e060"; TEAM="MMN0222"
 def one(f):
     r=json.load(open(f)); names=r["info"]["TeamNames"]; me=names.index(TEAM); op=1-me; seed=r["info"]["seed"]
     rec_op=[r["steps"][t+1][op].get("action") for t in range(719)]; rec_me=[r["steps"][t+1][me].get("action") for t in range(719)]
@@ -32,7 +32,7 @@ def _init(c, m, t):
     global CANDS, ME, TEAM; CANDS, ME, TEAM = c, m, t
 if __name__=="__main__":
     import argparse
-    ap=argparse.ArgumentParser(); ap.add_argument("--replays",required=True); ap.add_argument("--me",default="agents/live_d"); ap.add_argument("--cands",nargs="+",default=_DEFAULT_CANDS)
+    ap=argparse.ArgumentParser(); ap.add_argument("--replays",required=True); ap.add_argument("--me",default="agents/e060"); ap.add_argument("--cands",nargs="+",default=_DEFAULT_CANDS)
     ap.add_argument("--team",default="MMN0222"); ap.add_argument("--out",default="tmp/match_versions.json"); ap.add_argument("--workers",type=int,default=8)
     a=ap.parse_args(); files=sorted(glob.glob(a.replays))
     with ProcessPoolExecutor(a.workers, initializer=_init, initargs=(a.cands,a.me,a.team)) as ex: res=list(ex.map(one,files))

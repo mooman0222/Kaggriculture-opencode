@@ -62,7 +62,7 @@
 - 口: `agents/e060/base.py` は同梱 `actions.json` からルートを読む (本数任意)。`_router` の辞書 = 世界別ルート表、`_FIN(route)` = 家系ごとの最終プラン index
   (0909 家系 → 2、0913 家系 (index 13〜41) → 14)。層内の `route 2 @648` 参照 10 箇所は `_FIN` 経由に置換済み
 - 手順: (1) NB を `tmp/e058/agents/<ref>/main.py` に展開しテープと表をデコード (0913 例: `tmp/e058/sr0913_data.json`)
-  (2) `actions.json` に追記し `_FIN` に最終プランを登録 (3) `tmp/e058/route_choice.py` で 64 ペア × 4 seeds (残り 6 店は乱択) を
+  (2) `actions.json` に追記し `_FIN` に最終プランを登録 (3) `tests/route_choice.py` で 64 ペア × 4 seeds (残り 6 店は乱択) を
   既定プラン vs 新プランで v41 相手に測り、+1k 超のペアだけ表へ (4) `kag_eval` 対 v41・対現行、実戦 80 席、実エンジン self-match → 提出
 - 前提: yhay81 形式 (719 手、step 144 で 2 店選択、step 648 で最終プラン)。v41 層は 0909 の農場配置に合わせて調整されており、
   新テープは世界別に勝ち負けが分かれる (0913: YARN 世界 −7〜−21k / BAK・BRU・PET 世界 +3〜5k) ので全面差し替えではなくペア別採用にする。

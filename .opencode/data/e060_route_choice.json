@@ -1,0 +1,322 @@
+{
+"BAKERY,BAKERY": {
+"pick": "0913",
+"m0909": 2162.25,
+"m0913": 4644.5
+},
+"BAKERY,BRUNCH_SPOT": {
+"pick": "0913",
+"m0909": 2556.5,
+"m0913": 6123.75
+},
+"BAKERY,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 2620.25,
+"m0913": 1549.5
+},
+"BAKERY,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 2653.5,
+"m0913": 2173.75
+},
+"BAKERY,PET_CAFE": {
+"pick": "0909",
+"m0909": 2226.75,
+"m0913": 2509.75
+},
+"BAKERY,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2357.75,
+"m0913": 2222.0
+},
+"BAKERY,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 2711.75,
+"m0913": 1953.75
+},
+"BAKERY,YARN_STORE": {
+"pick": "0909",
+"m0909": 4053.75,
+"m0913": 4460.5
+},
+"BRUNCH_SPOT,BAKERY": {
+"pick": "0909",
+"m0909": 2477.5,
+"m0913": 2045.25
+},
+"BRUNCH_SPOT,BRUNCH_SPOT": {
+"pick": "0913",
+"m0909": 1762.5,
+"m0913": 5577.5
+},
+"BRUNCH_SPOT,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 1922.5,
+"m0913": 1559.5
+},
+"BRUNCH_SPOT,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 1990.0,
+"m0913": 1070.75
+},
+"BRUNCH_SPOT,PET_CAFE": {
+"pick": "0913",
+"m0909": 2496.0,
+"m0913": 3854.5
+},
+"BRUNCH_SPOT,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2681.0,
+"m0913": 1656.25
+},
+"BRUNCH_SPOT,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 2059.0,
+"m0913": 1056.75
+},
+"BRUNCH_SPOT,YARN_STORE": {
+"pick": "0913",
+"m0909": 3354.0,
+"m0913": 6803.5
+},
+"FARMERS_MARKET,BAKERY": {
+"pick": "0913",
+"m0909": 2569.25,
+"m0913": 3860.25
+},
+"FARMERS_MARKET,BRUNCH_SPOT": {
+"pick": "0909",
+"m0909": 1953.25,
+"m0913": 2429.0
+},
+"FARMERS_MARKET,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 2334.25,
+"m0913": -17539.25
+},
+"FARMERS_MARKET,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 2083.0,
+"m0913": 497.75
+},
+"FARMERS_MARKET,PET_CAFE": {
+"pick": "0909",
+"m0909": 2585.0,
+"m0913": 2602.25
+},
+"FARMERS_MARKET,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 3144.0,
+"m0913": 504.75
+},
+"FARMERS_MARKET,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 2070.75,
+"m0913": 487.0
+},
+"FARMERS_MARKET,YARN_STORE": {
+"pick": "0909",
+"m0909": 3126.0,
+"m0913": -2075.25
+},
+"ICE_CREAM_SHOP,BAKERY": {
+"pick": "0909",
+"m0909": 2326.0,
+"m0913": 1936.25
+},
+"ICE_CREAM_SHOP,BRUNCH_SPOT": {
+"pick": "0909",
+"m0909": 1802.0,
+"m0913": 1126.75
+},
+"ICE_CREAM_SHOP,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 1875.75,
+"m0913": 715.75
+},
+"ICE_CREAM_SHOP,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 1780.5,
+"m0913": 1338.5
+},
+"ICE_CREAM_SHOP,PET_CAFE": {
+"pick": "0909",
+"m0909": 2414.75,
+"m0913": 1937.75
+},
+"ICE_CREAM_SHOP,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2529.0,
+"m0913": -1804.25
+},
+"ICE_CREAM_SHOP,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 1768.0,
+"m0913": 1167.0
+},
+"ICE_CREAM_SHOP,YARN_STORE": {
+"pick": "0909",
+"m0909": 4340.5,
+"m0913": 2467.5
+},
+"PET_CAFE,BAKERY": {
+"pick": "0913",
+"m0909": 2180.0,
+"m0913": 4562.25
+},
+"PET_CAFE,BRUNCH_SPOT": {
+"pick": "0913",
+"m0909": 2567.0,
+"m0913": 3859.25
+},
+"PET_CAFE,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 2630.5,
+"m0913": 818.0
+},
+"PET_CAFE,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 2658.5,
+"m0913": 2152.5
+},
+"PET_CAFE,PET_CAFE": {
+"pick": "0913",
+"m0909": 2278.25,
+"m0913": 7256.0
+},
+"PET_CAFE,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2435.0,
+"m0913": 2113.75
+},
+"PET_CAFE,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 2750.25,
+"m0913": 2079.5
+},
+"PET_CAFE,YARN_STORE": {
+"pick": "0909",
+"m0909": 2961.25,
+"m0913": -6969.75
+},
+"PIZZA_SHOP,BAKERY": {
+"pick": "0909",
+"m0909": 2116.75,
+"m0913": 2646.75
+},
+"PIZZA_SHOP,BRUNCH_SPOT": {
+"pick": "0909",
+"m0909": 2546.5,
+"m0913": 1976.0
+},
+"PIZZA_SHOP,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 3055.75,
+"m0913": -4.0
+},
+"PIZZA_SHOP,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 2496.75,
+"m0913": -1965.0
+},
+"PIZZA_SHOP,PET_CAFE": {
+"pick": "0909",
+"m0909": 2210.0,
+"m0913": 2176.75
+},
+"PIZZA_SHOP,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2601.5,
+"m0913": -330.5
+},
+"PIZZA_SHOP,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 2550.75,
+"m0913": -1107.75
+},
+"PIZZA_SHOP,YARN_STORE": {
+"pick": "0909",
+"m0909": 4348.75,
+"m0913": -4227.25
+},
+"SMOOTHIE_SHOP,BAKERY": {
+"pick": "0909",
+"m0909": 2385.0,
+"m0913": 1995.5
+},
+"SMOOTHIE_SHOP,BRUNCH_SPOT": {
+"pick": "0909",
+"m0909": 1795.0,
+"m0913": 322.5
+},
+"SMOOTHIE_SHOP,FARMERS_MARKET": {
+"pick": "0909",
+"m0909": 1873.0,
+"m0913": 564.0
+},
+"SMOOTHIE_SHOP,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 1881.5,
+"m0913": 845.75
+},
+"SMOOTHIE_SHOP,PET_CAFE": {
+"pick": "0909",
+"m0909": 2502.75,
+"m0913": 1531.0
+},
+"SMOOTHIE_SHOP,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 2612.0,
+"m0913": 1451.75
+},
+"SMOOTHIE_SHOP,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 1856.0,
+"m0913": 443.0
+},
+"SMOOTHIE_SHOP,YARN_STORE": {
+"pick": "0909",
+"m0909": 4272.0,
+"m0913": 1512.5
+},
+"YARN_STORE,BAKERY": {
+"pick": "0909",
+"m0909": 2927.0,
+"m0913": -12309.75
+},
+"YARN_STORE,BRUNCH_SPOT": {
+"pick": "0909",
+"m0909": 2707.25,
+"m0913": 1699.25
+},
+"YARN_STORE,FARMERS_MARKET": {
+"pick": "0913",
+"m0909": 3136.25,
+"m0913": 5855.75
+},
+"YARN_STORE,ICE_CREAM_SHOP": {
+"pick": "0909",
+"m0909": 3319.75,
+"m0913": 2096.75
+},
+"YARN_STORE,PET_CAFE": {
+"pick": "0909",
+"m0909": 6842.0,
+"m0913": 2543.75
+},
+"YARN_STORE,PIZZA_SHOP": {
+"pick": "0909",
+"m0909": 4244.25,
+"m0913": 2914.25
+},
+"YARN_STORE,SMOOTHIE_SHOP": {
+"pick": "0909",
+"m0909": 4320.5,
+"m0913": 1741.75
+},
+"YARN_STORE,YARN_STORE": {
+"pick": "0909",
+"m0909": 5599.0,
+"m0913": -26961.5
+}
+}

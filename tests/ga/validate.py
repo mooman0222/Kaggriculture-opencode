@@ -3,7 +3,7 @@ import argparse, shutil, subprocess, sys
 from pathlib import Path
 ap = argparse.ArgumentParser(); ap.add_argument("tapes"); ap.add_argument("--games", type=int, default=24); ap.add_argument("--pool", action="store_true")
 a = ap.parse_args()
-d = Path("agents/ga_live"); d.mkdir(exist_ok=True)
+d = Path("agents/legacy/ga_live"); d.mkdir(exist_ok=True)
 for f in ("main.py", "router.py", "LICENSE.txt"): shutil.copy(f"agents/sr0909_live/{f}", d / f)
 shutil.copy(a.tapes, d / "actions.json")
 py = sys.executable

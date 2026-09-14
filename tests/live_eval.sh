@@ -1,7 +1,7 @@
 #!/bin/bash
-# ライブ候補の定型評価: 対 v41・対 E058 (両席 16 戦) と、我々が弱かった世界 (固定ショップ) での own bank
+# 候補の定型評価 (使い方: bash tests/live_eval.sh agents/X/main.py): 対 v41・対 E058 (両席 16 戦) と、我々が弱かった世界 (固定ショップ) での own bank
 cd /Users/jp17373/workspace/Kaggriculture-opencode
-A=${1:-agents/live_e/main.py}; V41=tmp/e058/agents/ahmedberatozer_kaggriculture-v41-review-candidate/main.py
+A=${1:-agents/e060/main.py}; V41=third_party/public_agents/v41/main.py
 echo "== vs v41"; .venv/bin/python tests/kag_eval.py $A --vs $V41 --games 16 --seed0 5000 2>&1 | grep -v Warn | tail -1
 echo "== vs E058"; .venv/bin/python tests/kag_eval.py $A --vs agents/e058/main.py --games 16 --seed0 5000 2>&1 | grep -v Warn | tail -1
 echo "== worst worlds (fixed shops, vs v41, own bank)"; .venv/bin/python - $A <<'PY' 2>&1 | grep -v Warn
@@ -9,7 +9,7 @@ import json,sys,os,importlib.util,hashlib,kagsim
 def load(p):
     d=os.path.dirname(os.path.abspath(p)); sys.path.insert(0,d)
     s=importlib.util.spec_from_file_location("c_"+hashlib.md5(p.encode()).hexdigest()[:8],p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
-a=load(sys.argv[1]); b=load("tmp/e058/agents/ahmedberatozer_kaggriculture-v41-review-candidate/main.py")
+a=load(sys.argv[1]); b=load("third_party/public_agents/v41/main.py")
 rows=json.load(open("tmp/e058/world_gap.json")); rows.sort(key=lambda r:-(r["pair_rec"]-r["pair_ours"]))
 own=[]; opp=[]
 for r in rows[:8]:
