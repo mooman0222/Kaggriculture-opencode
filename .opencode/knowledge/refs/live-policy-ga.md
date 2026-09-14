@@ -45,3 +45,26 @@
   (3) 日末に全員が一括搬入するため shed(100) が溢れて廃棄 (最大 150 単位)、(4) トマトは保持しても自分の売りで価格が崩れ 10k 前後で頭打ち、
   (5) 後付けガーデン (第4区画 + 増員) は −19k、テープ内の作物入替は水やり周期が合わず −3k
 - 市場の相互作用: 我々の生産が落ちると相手 (テープ) の収入が増える (品目の値崩れが減る)。勝敗目的では「相手と同じ品目を多く売る」こと自体が武器
+
+## E058 (2026-09-14): 土台の交代 — v41 chassis に GA テープとライブ層を載せる
+- 実戦 80 戦 (E057 25W55L) の相手 75% は ahmedberatozer 系 (0909 テープ + 反応層)。版特定は `tests/match_versions.py`
+- `agents/e058/`: base.py = 公開 v41 main.py に「`_ROUTES` を同ディレクトリ actions.json から読む」注入 (`del _PAYLOAD` 直後)。
+  main.py = E057 の Live を chassis 内部 (`_IMPL.chassis.routes` / `.players[seat]['route']` / `_View` / `_projected_shed`) に接続。
+  step ≤1 と 718 は素通し (v41 の開幕と終局プランナーを尊重)。OHFR は既定 OFF
+- v41 の層はテープを `_IMPL.chassis.routes` 経由で読むので 13 本×719 手の同形テープなら差し替え可。ただし
+  `_R86_FEED_CACHE` / `_R95_RESERVES` / `Chassis._future_sells` は route キーで永久キャッシュ → **同一プロセスでテープを替えるなら module を作り直す** (fit58 は候補ごとに tempdir + 新 module)
+- 適応度 `tests/ga/fit58.py`: (a) 実戦 80 席の記録ストリーム相手に席差し替え (偶数 episode = train)、(b) v41 / More Yield 反応クローン 12 seeds×両席。
+  score = 0.5·pool + 0.3·v41 + 0.2·MoreYield (各 mean + 3000·勝率)。1 候補 ≈12 s (8 proc)。`tests/ga/evolve58.py` は evolve.py の変異演算子を再利用し、pool-only でふるい → 上位 2 を反応クローン付きで確認
+- 素 0909 テープの E056 GA 版を v39 層に載せると 0W24L −7k: テープの最適化は層と共進化するので、土台を替えたら素から
+- 提出: **ref 56220023 (E058 base、GA 前)**。GA run2 は 10 世代で +109 点 (v41 マージンと pool の交換関係)、伸びは小さい見込み
+
+## テープ差し替えの手順と前提 (E060 で確立、2026-09-14)
+- 口: `agents/e060/base.py` は同梱 `actions.json` からルートを読む (本数任意)。`_router` の辞書 = 世界別ルート表、`_FIN(route)` = 家系ごとの最終プラン index
+  (0909 家系 → 2、0913 家系 (index 13〜41) → 14)。層内の `route 2 @648` 参照 10 箇所は `_FIN` 経由に置換済み
+- 手順: (1) NB を `tmp/e058/agents/<ref>/main.py` に展開しテープと表をデコード (0913 例: `tmp/e058/sr0913_data.json`)
+  (2) `actions.json` に追記し `_FIN` に最終プランを登録 (3) `tmp/e058/route_choice.py` で 64 ペア × 4 seeds (残り 6 店は乱択) を
+  既定プラン vs 新プランで v41 相手に測り、+1k 超のペアだけ表へ (4) `kag_eval` 対 v41・対現行、実戦 80 席、実エンジン self-match → 提出
+- 前提: yhay81 形式 (719 手、step 144 で 2 店選択、step 648 で最終プラン)。v41 層は 0909 の農場配置に合わせて調整されており、
+  新テープは世界別に勝ち負けが分かれる (0913: YARN 世界 −7〜−21k / BAK・BRU・PET 世界 +3〜5k) ので全面差し替えではなくペア別採用にする。
+  step 0 の市場注文は v41 の小麦ダンプで上書きされる。GA (evolve58) は 13 本前提で 42 本表には未対応
+- 到達点: プランナー (live_e) は経路効率 65% で −25k、テープ上の局所介入 (live_f) は中立〜悪化。適応はテープ表の拡張でのみ安全に得られた

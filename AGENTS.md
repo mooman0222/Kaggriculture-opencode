@@ -1,7 +1,7 @@
 # Kaggriculture プロジェクト (Kaggle コンペ)
 
 2人対戦の農業シミュレーション。シーズン終了時 (720ターン) の所持金が多い方が勝ち。
-現行提出は `agents/kaito_v56_e052a.py` (E052a、2026-09-08) と `agents/kaito_v56_e050hybrid.py` (E050)。E035a 時点の主力は `agents/kaito_v56_orak16.py` (kaggle が呼ぶのは最後の callable `agent_entry`。
+現行提出は `agents/e058_base.tar.gz` (E058、2026-09-14、ref 56220023) と `agents/live_d_e057.tar.gz` (E057、ref 56166331)。`agents/e060.tar.gz` (E060、ref 56221811、E058 + 世界別に 0913 テープを混ぜた 42 本表) も提出済。E035a 時点の主力は `agents/kaito_v56_orak16.py` (kaggle が呼ぶのは最後の callable `agent_entry`。
 `main.py` は E019c 時点の化石だったため 2026-09-04 に削除済み、E019b が必要なら git 履歴から復元)。
 
 ## 環境とコマンド
@@ -170,22 +170,35 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 - **提出済み: ref 56156691 = `agents/sr0909_live_k6.tar.gz`** (0909 + クローンゲート K6 先回し + 暇な手 + 開幕ガード)。0909 ミラー 24勝0敗、実戦60席差し替えで 2勝→53勝
 - 現行スロット: 56156691 (E055) と 56112322 (E054 2590)
 
+### E057-live / E058 (2026-09-14): ahmedberatozer 系への乗り換え (詳細は refs/live-policy-ga.md 末尾、experiments.md E057-live〜E058)
+
+- E057 (GA 0909 テープ + 売り層) は 09-13〜14 の実戦 80 戦で 25W55L、LB 2464 (724 位)。相手 75% は **ahmedberatozer 系** (More Yield / v38 / v39 と再配布 aurax7 v4・guru v3)。
+  `tests/match_versions.py` (同シード・同席で全 719 手を再現照合) で版まで特定できる — 開幕ハッシュや sig24 では同系が全部同じに見える
+- **この系の 13 本テープは 0909 と同一**。強さは反応層 (d12 羊6頭 / d18 トマト投資 / 肥料雇用 / 経済給餌 / 小麦供給 / 売却先回し) と step0 開幕。
+  最新 v41 (09-13 22:21) は step0 に小麦ダンプ (BUY5+BUY10+SELL60) を持ち、旧開幕 (R42) の同系に +30k/戦、素 0909 には −50k
+- **E058 = `agents/e058/`**: base.py (v41 本文 + テープを actions.json から読む注入) + main.py (E057 のライブ層を chassis 内部に接続、OHFR は逆効果で OFF)。
+  対 v41 48W0L +2.3k / 対 v39・More Yield +30k / 対 E057 +11.7k / 実戦 80 席 25→75 勝 (out-of-sample 80 席 23→76)。**提出 ref 56220023**
+- GA は `tests/ga/fit58.py` (実戦 80 席 + v41/More Yield 反応クローン、L1) と `tests/ga/evolve58.py` で 0909 テープから再走中 (`tmp/e058/ga/`)。
+  E056 の GA テープは旧ライブ層に過学習 (v39 層で 0W24L) — **土台を替えたらテープは素から**
+- 評価の定石: `tests/kag_eval.py X --vs Y --games 48` (両席)、`--replays 'tmp/e058/e057_battles/episode-*.json' --team MMN0222 --base Z` (実戦席差し替え)。
+  実戦データ: `tmp/e058/e057_battles/` (直近 80)、`tmp/e058/e057_battles2/` (その前 80)、公開 NB 実体: `tmp/e058/agents/<ref>/main.py`
+
+### C 路線 (毎手プランナー) と E059/E060 (2026-09-14 午後、詳細は experiments.md live_e / live_f / route-table / E059 / E060)
+
+- `agents/live_e` (需要適応マクロ + ゾーン巡回ミクロ) は d18 引き継ぎで対 v41 −25k、d6 で −50k。原因は経路効率 (収穫 651 vs 1,006 単位)。
+  `agents/live_f` (テープの移動を骨格にタイル判断だけライブ化) は追加判断がすべて中立〜悪化。**固定ルート上の局所介入は打ち止め** (E018-M7 と同じ結論)
+- **E060**: 0913 (yhay81 09-13、29 本・64 世界表) を v41 層に載せると YARN 世界で崩れるが BAK/BRU/PET 世界で勝つ → ペア別に良い方を選ぶ 42 本表。
+  対 v41 48W0L +2.9k (E058 +2.3k)、対 E058 負けなし +0.8k。評価ツール: `tests/live_eval.sh`, `tests/live_debug.py`, `tests/live_sweep.py`, `tmp/e058/route_choice.py`
+
 ### 次のステップ
 
-1. **E035a の収束確認** (提出 2026-09-04 13:08 UTC)。150戦溜まったら
-   `tests/fetch_battles.py --dir tmp/<dir> --team MMN0222 --lb lb.csv` で系統別勝率を出し、
-   特に bf5f 系 (E031b で0勝3敗、E034 で0勝1敗) への勝率とミラー戦マージンを確認
-   (敗戦の品目分解は「提出注文は不執行スパムで過大」に注意 — 注文数量ベースで見る)
-2. **メタ監視 (最重要)**: kaito は2-3日周期で新版を公開 (v48→v56)。v57+ が出たら
-   「コア差し替え → K16 オラクル移植 (make_oracle_k 方式) → sweep 移植 → 3点検証
-   (vs 素コア両席ペア / vs 旧世代 / self-match)」のパイプラインを回す。
-   確認コマンド: `kaggle kernels list -s kaggriculture --sort-by dateRun`
-3. **新敗因クラスの監視**: 2400+ 帯で新しい相手クラスが出たら E029 と同じ手法で分解
-   (24手署名で系統を切り、負け系統の「同一シードでの我々との差」を見る)。
-   2700 超は非公開の自前スケジュール勢 — 公開 v56 系列の改良では 2500 帯が天井の可能性
-   (refs/top-survey-2026-09-02.md、destbreso Island GA 論)
-4. **提出運用**: 締切 9/30、最終評価は締切後 ~2週間の Bradley-Terry。締切時点で
-   「エラーの出ない最強2つ」をスロットに置くことが全て。提出は毎回ユーザー確認
+1. **E058 (56220023) の収束確認**: 1 日後に `kaggle competitions episodes 56220023` → `tests/fetch_battles.py` / `tests/lineage_census.py` で系統別勝率。
+   特に v41 系 (sig24 f4c178e5c1) の比率と対戦成績 — 相手が v41 開幕を採用すると +30k の開幕差は消え、層の差 (+2k) だけになる
+2. **GA run2 の完走** (`tmp/e058/ga/run2.log`、best = `tmp/e058/ga/best_run2.json`) → `agents/e058/actions.json` に載せて
+   `kag_eval --vs v41 --games 48` と実戦 80 席 (base=E058) で確認、正なら第 2 スロット (E057 と入替)
+3. **メタ監視**: ahmedberatozer は 1 日 1〜2 版を公開 (`kaggle kernels list -s kaggriculture --sort-by dateRun`)。新版が出たら
+   `tmp/e058/agents/` に展開 → `kag_eval --vs` で E058 と比較 → 強ければ base.py を差し替え (注入は `del _PAYLOAD` 直後の 1 箇所)
+4. **提出運用**: 締切 9/30、最終評価は締切後 ~2 週間の Bradley-Terry。締切時点で「エラーの出ない最強 2 つ」をスロットに置くことが全て。提出は毎回ユーザー確認
 
 **検証済みの失敗 (再試行しない)**: フルリアクティブ / ファーマー置換 / PASS 介入
 (E018-M4b)。ルート再生のステップずれ対策は M5_OFFSET (route[step+1]) が正解で、

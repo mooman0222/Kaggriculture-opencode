@@ -1,0 +1,6 @@
+Based on "Kaggriculture V41 - Review Candidate" by Ahmed Berat Ozer (ahmedberatozer, Kaggle, 2026-09-13), Apache-2.0,
+which itself derives from Shop Router 0909 by Yusuke Hayashi (yhay81) and the public work of aurax7, tetsutani,
+thomastschinkel, prvsiyan, destbreso and Dmitrii Gluzdov (attributions retained in base.py; see LICENSE.txt).
+Modifications (2026-09-14, MMN0222): base.py reads its 13 route tapes from actions.json (route tapes re-optimised by local
+search against a recorded opponent pool); main.py adds live layers on top of the v41 agent: cash guard for upcoming tape
+purchases, clone-gated 6-turn sell lead, shed-pressure relief, idle-hand FERTILIZE/WATER/CARE.

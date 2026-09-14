@@ -1,0 +1,5 @@
+Based on "Kaggriculture V41 - Review Candidate" by Ahmed Berat Ozer (ahmedberatozer, Kaggle, 2026-09-13), Apache-2.0, with its
+13 Shop Router 0909 tapes replaced by the 29 tapes and 64-world route table of Shop Router 0913 by Yusuke Hayashi (yhay81,
+Kaggle, 2026-09-13), Apache-2.0. Attributions of both retained in base.py; see LICENSE.txt.
+Modifications (2026-09-14, MMN0222): base.py reads its tapes from actions.json (final plan kept at index 2 for the layers);
+main.py adds live layers on top of the v41 agent: cash guard, clone-gated 6-turn sell lead, shed relief, idle-hand work.
