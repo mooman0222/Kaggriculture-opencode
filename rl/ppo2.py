@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, torch
 from model2 import Policy2 as Policy
 from rollout import ScriptedOpp
-from rollout2 import rollout2 as rollout, logp2, model_out_fn
+from rollout2 import rollout2 as rollout, logp2, model_out_fn, PolicyOpp
 
 
 def gae(rew, val, gamma=1.0, lam=0.95):
@@ -18,13 +18,14 @@ def gae(rew, val, gamma=1.0, lam=0.95):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--init", required=True); ap.add_argument("--out", required=True); ap.add_argument("--iters", type=int, default=50)
-    ap.add_argument("--games", type=int, default=32); ap.add_argument("--opps", nargs="+", default=["third_party/public_agents/v41/main.py", "agents/e060/main.py"])
+    ap.add_argument("--games", type=int, default=32); ap.add_argument("--opps", nargs="+", default=["third_party/public_agents/v41/main.py", "agents/e060/main.py"], help="main.py (スクリプト) か .pt (凍結した学習方策) を混在可")
     ap.add_argument("--lr", type=float, default=5e-5); ap.add_argument("--epochs", type=int, default=3); ap.add_argument("--bs", type=int, default=512); ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--ent", type=float, default=0.003); ap.add_argument("--vf", type=float, default=0.5); ap.add_argument("--opening", type=int, default=0)
-    ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/iter)")
+    ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/iter)"); ap.add_argument("--temp", type=float, default=0.7, help="dest/op のサンプリング温度")
     a = ap.parse_args(); dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    import rollout2; rollout2.TEMP = a.temp
     model = Policy().to(dev); model.load_state_dict(torch.load(a.init, map_location=dev)); opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.0)
-    opps = [ScriptedOpp(p) for p in a.opps]; opening = ScriptedOpp("agents/e058/main.py") if a.opening else None; fn = model_out_fn(model)
+    opps = [PolicyOpp(p, "cpu") if p.endswith(".pt") else ScriptedOpp(p) for p in a.opps]; opening = ScriptedOpp("agents/e058/main.py") if a.opening else None; fn = model_out_fn(model)
     state_path = a.out + ".state"; start = 0
     if a.resume and os.path.exists(state_path):
         st = torch.load(state_path, map_location=dev); model.load_state_dict(st["model"]); opt.load_state_dict(st["opt"]); start = st["iter"]; print(f"resumed at iter {start}", flush=True)
@@ -40,13 +41,14 @@ def main():
             for b in range(0, N, a.bs):
                 idx = perm[b:b + a.bs]; bt = {k: v[idx].to(dev) for k, v in flat.items()}
                 act = {k: bt[k].long() for k in ("dest", "op", "qty", "sell", "buyp", "seed", "anim", "hire", "land")}
-                logp, ent = logp2(fn, bt, act)
-                value = model.market(model.encode(bt["tiles"], bt["units"], bt["items"], bt["glob"]))["value"]
-                ratio = torch.exp(logp - bt["logp"]); A = adv_t[idx].to(dev)
-                pg = -torch.min(ratio * A, torch.clamp(ratio, 1 - a.clip, 1 + a.clip) * A).mean()
+                logp, ent = logp2(fn, bt, act, per_head=True)  # [B,K] per sub-action
+                value = model.market(model.encode(bt["tiles"], bt["units"], bt["items"], bt["glob"], bt["prev"]))["value"]
+                ratio = torch.exp(logp - bt["logp"]); A = adv_t[idx].to(dev).unsqueeze(-1)
+                live = (bt["logp"] != 0)  # sub-actions that were actually taken (absent units / off-destination ops carry logp 0)
+                pg = -(torch.min(ratio * A, torch.clamp(ratio, 1 - a.clip, 1 + a.clip) * A) * live).sum() / live.sum().clamp(min=1)
                 vl = ((value - ret_t[idx].to(dev)) ** 2).mean(); loss = pg + a.vf * vl - a.ent * ent.mean()
                 opt.zero_grad(); loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5); opt.step()
-                stats.append((pg.item(), vl.item(), ent.mean().item(), (ratio - 1).abs().mean().item()))
+                stats.append((pg.item(), vl.item(), ent.mean().item(), ((ratio - 1).abs() * live).sum().item() / live.sum().clamp(min=1).item()))
         s = np.mean(stats, 0)
         print(f"it {it} margin {np.mean(margins):+7.0f} own {np.mean(own):7.0f} wins {sum(m > 0 for m in margins)}/{len(margins)} | pg {s[0]:.3f} vf {s[1]:.3f} ent {s[2]:.2f} |r-1| {s[3]:.3f} [{time.time()-t0:.0f}s]", flush=True)
         torch.save(model.state_dict(), a.out); torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "iter": it + 1}, state_path)

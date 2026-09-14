@@ -39,8 +39,8 @@ def load_py(p):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("ckpt"); ap.add_argument("--games", type=int, default=8); ap.add_argument("--vs", default="third_party/public_agents/v41/main.py")
-    ap.add_argument("--seed0", type=int, default=5000); ap.add_argument("--debug", action="store_true"); ap.add_argument("--opening", type=int, default=0, help="この step までは agents/e058 を使う"); ap.add_argument("--d", type=int, default=128); ap.add_argument("--layers", type=int, default=3)
-    a = ap.parse_args(); agent = BCAgent(a.ckpt, a.d, a.layers); opp = load_py(a.vs); res = []; t0 = time.time(); tmax = 0
+    ap.add_argument("--seed0", type=int, default=5000); ap.add_argument("--debug", action="store_true"); ap.add_argument("--opening", type=int, default=0, help="この step までは agents/e058 を使う"); ap.add_argument("--d", type=int, default=128); ap.add_argument("--layers", type=int, default=3); ap.add_argument("--temp", type=float, default=0.0)
+    a = ap.parse_args(); agent = BCAgent(a.ckpt, a.d, a.layers, temperature=a.temp); opp = load_py(a.vs); res = []; t0 = time.time(); tmax = 0
     e058 = load_py("agents/e058/main.py") if a.opening else None
     for g_i in range(a.games):
         seed = a.seed0 + g_i // 2; seat = g_i % 2

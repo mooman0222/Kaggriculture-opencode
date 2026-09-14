@@ -16,21 +16,27 @@ def _cat(logits, greedy):
     d = torch.distributions.Categorical(logits=logits); a = logits.argmax(-1) if greedy else d.sample(); return a, d.log_prob(a), d.entropy()
 
 
-def logp2(model_out_fn, batch, act):
-    """Recompute joint log-prob and entropy of stored actions. model_out_fn(batch, dest) -> (dest_logits, op_logits, qty_logits, market dict)."""
+TEMP = 1.0  # sampling temperature for dest/op heads (set by the trainer; policy := softmax(logits / TEMP))
+
+
+def logp2(model_out_fn, batch, act, per_head=False):
+    """Recompute joint log-prob and entropy of stored actions. model_out_fn(batch, dest) -> (dest_logits, op_logits, qty_logits, market dict).
+    per_head=True returns a [B, K] tensor of sub-action log-probs (units' dest, units' op, market heads) instead of the sum."""
     dest_lg, op_lg, qty_lg, mk = model_out_fn(batch, act["dest"])
-    dest_lg = dest_lg.masked_fill(~batch["dest_mask"], -1e9); op_lg = op_lg.masked_fill(~batch["op_mask"], -1e9)
+    dest_lg = (dest_lg / TEMP).masked_fill(~batch["dest_mask"], -1e9); op_lg = (op_lg / TEMP).masked_fill(~batch["op_mask"], -1e9)
     present = batch["present"]; at_dest = batch["at_dest"]
     ld = torch.distributions.Categorical(logits=dest_lg); lo = torch.distributions.Categorical(logits=op_lg); lq = torch.distributions.Categorical(logits=qty_lg)
     op = act["op"]; is_q = ((op >= 16) & (op <= 27)) | ((op >= 29) & (op <= 40))
-    lp = (ld.log_prob(act["dest"]) * present).sum(-1) + (lo.log_prob(op) * present * at_dest).sum(-1) + (lq.log_prob(act["qty"]) * present * at_dest * is_q).sum(-1)
+    parts = [ld.log_prob(act["dest"]) * present, lo.log_prob(op) * present * at_dest, lq.log_prob(act["qty"]) * present * at_dest * is_q]
     ent = (ld.entropy() * present).sum(-1) / present.sum(-1).clamp(min=1)
-    for k, n in (("sell", 14), ("buyp", 14), ("seed", 14)):
-        d = torch.distributions.Categorical(logits=mk[k]); lp = lp + d.log_prob(act[k]).sum(-1); ent = ent + d.entropy().mean(-1) * 0.2
-    d = torch.distributions.Categorical(logits=mk["anim"]); lp = lp + d.log_prob(act["anim"]).sum(-1)
-    d = torch.distributions.Categorical(logits=mk["hire"]); lp = lp + d.log_prob(act["hire"]); ent = ent + d.entropy() * 0.2
-    d = torch.distributions.Categorical(logits=mk["land"]); lp = lp + d.log_prob(act["land"])
-    return lp, ent
+    for k in ("sell", "buyp", "seed", "anim"):
+        d = torch.distributions.Categorical(logits=mk[k] / TEMP); parts.append(d.log_prob(act[k]))
+        if k == "sell": ent = ent + d.entropy().mean(-1) * 0.2
+    for k in ("hire", "land"):
+        d = torch.distributions.Categorical(logits=mk[k] / TEMP); parts.append(d.log_prob(act[k]).unsqueeze(-1))
+        if k == "hire": ent = ent + d.entropy() * 0.2
+    if per_head: return torch.cat(parts, -1), ent
+    return sum(p.sum(-1) for p in parts), ent
 
 
 def model_out_fn(model):
@@ -56,7 +62,7 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
         batch["prev"] = torch.from_numpy(prev.copy()).to(dev); prev_used = prev.copy()
         B = n_games
         with torch.no_grad():
-            H = model.encode(batch["tiles"], batch["units"], batch["items"], batch["glob"], batch["prev"]); dl = model.dest_logits(H); mk = model.market(H)
+            H = model.encode(batch["tiles"], batch["units"], batch["items"], batch["glob"], batch["prev"]); dl = model.dest_logits(H) / TEMP; mk = model.market(H)
         dl_np = dl.cpu().numpy(); present = np.stack([f["units"][:, 0] > 0 for f in feats])
         dest = np.zeros((B, MAX_UNITS), dtype=np.int64); dmask = np.zeros((B, MAX_UNITS, 100), dtype=bool)
         for b in range(B):
@@ -73,7 +79,7 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
                 dest[b, i] = d
                 if (d % 10, d // 10) not in SHED_TILES: claimed.add(d)
         dest_t = torch.from_numpy(dest).to(dev)
-        with torch.no_grad(): op_lg, q_lg = model.op_logits(H, dest_t)
+        with torch.no_grad(): op_lg, q_lg = model.op_logits(H, dest_t); op_lg = op_lg / TEMP
         op_mask = np.zeros((B, MAX_UNITS, N_OPS), dtype=bool); at_dest = np.zeros((B, MAX_UNITS), dtype=bool)
         for b in range(B):
             gm = games[b]; o = obs[b]; farm = o["farms"][gm["seat"]]; units = [farm["farmer"], *farm["hands"]][:MAX_UNITS]
@@ -86,10 +92,10 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
         with torch.no_grad():
             dlm = dl.masked_fill(~torch.from_numpy(dmask).to(dev), -1e9); olm = op_lg.masked_fill(~op_mask_t, -1e9)
             op_a, _, _ = _cat(olm, greedy); q_a, _, _ = _cat(q_lg, greedy)
-            mk_a = {k: _cat(mk[k], greedy)[0] for k in ("sell", "buyp", "seed", "anim", "hire", "land")}
+            mk_a = {k: _cat(mk[k] / TEMP, greedy)[0] for k in ("sell", "buyp", "seed", "anim", "hire", "land")}
             act = {"dest": dest_t, "op": op_a, "qty": q_a, **mk_a}
             bt = {"tiles": batch["tiles"], "units": batch["units"], "items": batch["items"], "glob": batch["glob"], "prev": batch["prev"], "dest_mask": torch.from_numpy(dmask).to(dev), "op_mask": op_mask_t, "present": present_t, "at_dest": at_dest_t}
-            lp, _ = logp2(fn, bt, act)
+            lp, _ = logp2(fn, bt, act, per_head=True)
         act_np = {k: v.cpu().numpy() for k, v in act.items()}
         prev[..., 0] = np.where(present, dest, 100); prev[..., 1] = np.where(present & at_dest, act_np["op"], 44)
         for b, gm in enumerate(games):
@@ -118,3 +124,14 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
     res = [(gm["g"].reward(gm["seat"]), gm["g"].reward(1 - gm["seat"])) for gm in games]
     traj = {k: np.stack(v) for k, v in T.items() if k != "reward"}; traj["reward"] = np.array(T["reward"], dtype=np.float32).reshape(719, n_games)
     return traj, res
+
+
+class PolicyOpp:
+    """Frozen learned policy as an opponent (greedy Policy2 via act2) — for self-play in PPO."""
+    def __init__(self, ckpt, dev="cpu"):
+        from model2 import Policy2; from act2 import act_policy2
+        self.m = Policy2().to(dev); self.m.load_state_dict(torch.load(ckpt, map_location=dev)); self.m.eval(); self.dev = dev; self.act2 = act_policy2; self.state = {}
+    def reset(self): self.state = {}
+    def act(self, obs, seat):
+        if int(obs["step"]) == 0: self.state = {}
+        return self.act2(self.m, obs, seat, self.dev, 0.0, state=self.state)[0]

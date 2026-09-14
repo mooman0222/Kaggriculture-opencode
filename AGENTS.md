@@ -82,6 +82,20 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 - 適応型の記録行動をテープ再生 (Majkel / MMPQ): 購買タイミングが崩れて崩壊。
 - 上位ルートの丸ごと再生 (E019 期) と部分移植 (E026/E045)。
 
+## RL 路線 (2026-09-14 夜、ユーザー判断で本線): Transformer 方策の模倣学習 → PPO
+
+- 目的: 1 位 (適応型 Majkel 3190) に勝つ学習エージェント。参照解法 = PTCG 1 位 (2.24M Transformer + PPO 自己対戦)。時間は制約にしない。
+- コードは `rl/` (手順は `rl/README.md`)、配備先は `agents/rl_agent/` (numpy 推論、`rl/export_agent.py ckpt` で重みを書き出す)。
+- 到達点: **v3 (目的タイル + 作業 + 直前決定の特徴)** を 1,503 戦で 4 epoch 学習 → kagsim 対 v41 で own bank 50〜57k (崩壊なし、v41 は 150k)。
+  v1 (方向を直接予測) と v2 (直前決定なし) は倉庫で固まって崩壊。詳細は experiments.md の RL-BC 行。
+- 重み (git 管理外、`tmp/rl/`): `bc5_ep0〜3.pt` (v3 各 epoch)。学習データ shard: `tmp/rl/{majkel,mmpq,spataro,ymg}/`, `tmp/rl/pq/<team_id>/` (計 1,595 戦)、
+  適応型チームだけのリスト `tmp/rl/adaptive_shards.txt` (1,174 戦)。公開データ: `tmp/data/replays_2026-09.parquet` (5.2 GB) と episodes/teams csv。
+  tmp が消えていたら `rl/README.md` の手順 1 で再生成できる (API 取得 ~1 h、parquet 展開 ~7 min)。
+- 再開手順: (1) `bash tests/live_eval.sh` 等は不要、まず `.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 8` で現状を再確認
+  (2) 次の一手は experiments.md 最終行の「次」欄: PPO (`rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo1.pt --iters 100 --games 32 --temp 0.3`、
+  相手に `.pt` を混ぜると凍結自己対戦) / 適応型限定データの BC (`--data tmp/rl/adaptive_shards.txt`) / 長期 BC (`--epochs 8 --resume`)。
+  **BC と PPO を同時に走らせない** (MPS の wired メモリで 38 GB を使い切りスワップする)。学習は `<out>.state` に途中保存され `--resume` で続く。
+
 ## 次のステップ
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
