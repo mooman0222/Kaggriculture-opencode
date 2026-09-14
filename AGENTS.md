@@ -13,7 +13,7 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
   48W0L +2〜3k、旧開幕の同系に +30k、実戦 80 席差し替えで 25→75 勝。
 - 1 位 Majkel1337 (3190) と、それを 23勝2敗で破った私設 M&M&P&Q は毎手適応型。記録行動の再生は崩壊し (−93k)、模倣不能。
   ローカルに適応型の代理はない → 上位帯の勝率は実戦データでしか測れない。
-- 保留: 毎手プランナー `agents/legacy/live_e` (対 v41 −25k、壁は経路効率)。テープ上の局所介入 (`live_f`) は中立〜悪化。
+- 保留: 毎手プランナー `agents/legacy/live_e` (対 v41 −25k、壁は経路効率)。テープ上の局所介入 (live_f、git 履歴) は中立〜悪化。
 
 ## リポジトリ構成
 
@@ -21,11 +21,11 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
 agents/e060, agents/e058     現行提出 (main.py = ライブ層, base.py = v41 本文+注入, actions.json = テープ, NOTICE.txt)
 agents/e060.tar.gz           提出物 (tar -czf ... main.py base.py actions.json LICENSE.txt NOTICE.txt)
 agents/sr0909_base, sr0909_live  素の 0909 と E055 (GA ツールの参照・対戦相手)
-agents/legacy/               退役 (kaito v56 系、E018 ルート、live_a〜f プランナー、e059、旧 tar)。詳細は agents/README.md
+agents/legacy/live_e         保留中の毎手プランナー。他の退役物は git 履歴 (agents/README.md 参照)
 third_party/public_agents/   ローカル対戦相手にする公開 NB の実体 (v41 / v39 / v38 / more_yield / aurax7_v4 / guru_v3 / shop_router_0913)
 third_party/kaggriculture-cppsim  kagsim (bit-exact C++ エンジン、1 試合 0.1〜1.5 s)
-tests/                       現役ツール (一覧と用途は tests/README.md)。tests/legacy/ は E018〜v56 時代
-.opencode/knowledge/         findings (検証済み知見) / experiments (実験ログ) / hypotheses / refs (調査メモ) / history
+tests/                       現役ツール (一覧と用途は tests/README.md)
+.opencode/knowledge/         findings (検証済み知見) / experiments (実験ログ) / meta / refs / history (時系列)
 .opencode/data/              0913 テープ (shop_router_0913_tapes.json)、E060 の世界別選択結果 (e060_route_choice.json)
 tmp/                         git 管理外の作業領域 (リプレイ、プール、公開 NB の生データ)。消えても再取得できる
 ```

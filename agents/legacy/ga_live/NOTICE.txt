@@ -1,4 +1,0 @@
-Based on Shop Router 0909 by Yusuke Hayashi (yhay81), Apache-2.0 (see LICENSE.txt).
-Modifications (2026-09-11, MMN0222): route tapes re-optimised by local search against a recorded opponent
-pool (sell timing/quantities, crop swaps, fertilizer application, purchase timing, one same-world continuation
-splice); live layers added: clone-gated 6-turn sell lead, idle-hand WATER/CARE, day-0 opening guard.

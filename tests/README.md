@@ -20,6 +20,4 @@
 **テープ表の拡張 (E060 手順)**
 - `route_choice.py --agent agents/e060/main.py --tapes .opencode/data/<tapes>.json --offset 13` — 64 ペア × seeds で既定プラン vs 新家系プランを v41 相手に比較し、ペア別の採用表を出す
 
-**GA (`ga/`)** — kagsim でテープを進化させる基盤 (pool/fitness/evolve/wrapped/validate は 0909 13 本前提、fit58/evolve58 は E058 の層付き評価)。層の上では伸びず現在は未使用
-
-**`legacy/`** — E018〜v56 時代 (route_gen / eval_routes / evaluate / run_match / strong_eval / build_router / v56_diff / xray / live_sweep ほか)
+**GA (`ga/`)** — kagsim でテープを進化させる基盤 (pool/fitness/evolve/wrapped は 0909 13 本前提、fit58/evolve58 は E058 の層付き評価)。層の上では伸びず現在は未使用
