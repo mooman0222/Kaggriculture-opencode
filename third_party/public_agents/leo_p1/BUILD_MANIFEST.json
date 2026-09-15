@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "agent_id": "seven-turn-rescue-t4-combined-v1",
+  "base": "seven-turn-rescue-wide-search-v1",
+  "treatment": {
+    "sale_mode": "adaptive_lead_two",
+    "crop_guard": true,
+    "detector": "matched public money delta after a real T-1 probe"
+  },
+  "source_experiment": "inventory_timing_crop_v1/results_v1_money_detector",
+  "files": {
+    "main.py": {
+      "bytes": 964,
+      "sha256": "0cba779f8e63918d732150b8de8e8d728c177874f93b3c064f3fb5cc906e48f4"
+    },
+    "combined_runtime.py": {
+      "bytes": 17426,
+      "sha256": "04ecc77ef260e357c64f1ff43e52addaeff4655007a814d877c377fd1eea78c6"
+    },
+    "base_main.py": {
+      "bytes": 1083,
+      "sha256": "495bfa4825c9e58638e804aeeb62a9537826f6d4d869222815e1bbeefd84d3dc"
+    },
+    "policy.py": {
+      "bytes": 10470,
+      "sha256": "e239501d1224ba3d198aef11bc6b1b40637fbac335db7ca07205175d992f9b12"
+    },
+    "router_parent.py": {
+      "bytes": 9365,
+      "sha256": "d6d74997dc5b483db63d8e39cafa1afeec0f366824e75107e109123f111e866b"
+    },
+    "terminal_planner.py": {
+      "bytes": 25147,
+      "sha256": "a9d7a6d29e1fb313852dc0121d43f16544771ed12775afaf3a0480e9ab713dce"
+    },
+    "unit_model.py": {
+      "bytes": 12009,
+      "sha256": "c03e8c5cd10466c229ee0a44dece9a3943c10bff135d96a7822ffe75d6922724"
+    },
+    "settings.json": {
+      "bytes": 91,
+      "sha256": "e2756d366c88e627da6711f20ae708613d6a7cf5805410c6af4326dfc7a7417e"
+    },
+    "actions.json": {
+      "bytes": 5099830,
+      "sha256": "17d503f2fd20d59f9c0f14024d1e74a8add8bb9b5561d4d908b45deecb5495ef"
+    },
+    "LICENSE.txt": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "NOTICE.txt": {
+      "bytes": 3888,
+      "sha256": "6435ca240eea352abffd2cbf19b446b311e372f552a07865cab1b8bb547b1230"
+    }
+  }
+}

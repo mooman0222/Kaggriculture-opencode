@@ -6,7 +6,7 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
 
 ## 現在地 (2026-09-15)
 
-- 提出中: **E061** (`agents/e061/`, ref 56235920、09-15 提出) と **E060** (ref 56221811、2776)。E058 (2792.8) は押し出し。
+- 提出中: **E065** (`agents/e065/`, ref 56243664、09-15 提出、v43 土台 + SELL 先頭化 + 適応リード) と **E062** (`agents/e062/`, ref 56243229、E061 + SELL 先頭化)。E061 (2814) は押し出し。
 - 構成: 公開 NB「ahmedberatozer v42」の反応層 (base.py、そのまま) + 自前ライブ層 (main.py、E058 と同一)。
   v42 は step144 に世界別生産ライブラリを選択する (YARN 世界は旧版維持)。E060 の 0913 表は未移植。
 - 実戦診断 (09-15、E058 122戦・E060 116戦): E060 が勝率 70% で E058 (66%) を上回る。敗戦の最大塊は v41 同系ミラー。
@@ -17,6 +17,10 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
 - 構成メモ (旧): E058/E060 = v41 反応層 + テープ差替 (actions.json) + 自前ライブ層。E060 は 0909 13 本 + 0913 29 本の 42 本表。
   E061 には未移植 (v42 の生産ライブラリと競合するため。seed5010 では E060 表が v42 に勝つ世界あり → 将来の統合余地)。
 - 相手分布: 実戦の 75% は ahmedberatozer 系 (0909 と同一テープ + 反応層、step0 小麦往復開幕)。E061 は v42 素に 18W6L +1.2k。
+- 09-15 敗因分析: E061 は対 2800+ 帯 7W17L で 2810 に均衡。同農場 34 戦の市場層入替 (kagsim 完全再現) で勝敗が反転 → 差は売り層。
+  **E062** (`agents/e062/`, E061 + SELL 先頭スロット化) = ミラー +771・対 v42 +1.7k・席差し替え悪化なし。**提出済み ref 56243229**。位相保留は棄却。
+  **E063** = E062 + v43 土台 (倉庫溢れ回収、対 E062 +238)。**E065** = E063 + 適応リード (相手の先行を検知したら売り先行 6→12 手): 対固定リード −1,410 → −14、席差し替え +299/+1,802 で現状最良。**提出済み ref 56243664**。
+  公開 NB 調査 (experiments.md「公開 NB 調査 09-15」): 店の抽選は seed 依存で使えない、往復売買は純損ゼロ、勝敗差は sell のみ。PPO3 は it 15 で発散し打ち切り (RL 路線は凍結)。
 - 保留: 毎手プランナー `agents/legacy/live_e` (対 v41 −25k、壁は経路効率)。テープ上の局所介入 (live_f、git 履歴) は中立〜悪化。
 
 ## リポジトリ構成
@@ -97,7 +101,7 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
   tmp が消えていたら `rl/README.md` の手順 1 で再生成できる (API 取得 ~1 h、parquet 展開 ~7 min)。
 - 2026-09-14 推論修正 B (act2/features/rollout2/rl_agent 共通): エンジン準拠の到着マスク + PLANT の種数トリム + 目的地の再選択 → **32 戦 own 59.6k±3.4k, margin −69k±4.3k** (修正前 43.9k / −107k)。評価は必ず 32 戦以上・SE 付きで (8 戦は seed 群で ±10k 振れる)。
   診断の結論: 差はマクロ判断ではなく序盤 d0〜d10 の実行の穴 (PASS 3 倍、PLANT 空打ち、餌なしで家畜へ)。experiments.md「RL 診断」「RL 推論修正 B」行。
-- PPO3 実行中 (2026-09-14): `rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo3.pt --iters 100 --games 32 --warmup 6 --temp 0.3 --kl 0.1`、log `tmp/rl/ppo3.log`。
+- PPO3 (2026-09-14 夜、Mac): 暖機 3 iter で MPS の Metal コンパイラ切断により停止 (own 55〜57k で方策は無傷)。`--resume` で続けられる。コマンド: `rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo3.pt --iters 100 --games 32 --warmup 6 --temp 0.3 --kl 0.1`、log `tmp/rl/ppo3.log`。
   KL 錨 + critic 暖機 + detach 価値頭 (experiments.md「RL PPO3」)。10 iter ごとの `_itK.pt` を `rl/play2.py ckpt --games 32` で貪欲評価して基準 (59.6k / −69k) と比べる。
 - 再開手順: (1) まず `.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 32` で現状を再確認 (基準 own ≈ 60k)
   (2) 次の一手は experiments.md 最終行の「次」欄: PPO (`rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo1.pt --iters 100 --games 32 --temp 0.3`、

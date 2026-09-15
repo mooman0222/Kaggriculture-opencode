@@ -1,0 +1,2 @@
+Based on "Kaggriculture V42: Production That Fits the Market" by Ahmed Berat Ozer (ahmedberatozer, Kaggle, 2026-09-14, REVIEW status), Apache-2.0 (upstream attributions retained in base.py).
+Modifications (MMN0222): main.py adds live layers on top of the v42 agent: cash guard for upcoming tape purchases, clone-gated 6-turn sell lead, shed-pressure relief, idle-hand FERTILIZE/WATER/CARE. Farm tapes and production router unchanged.
