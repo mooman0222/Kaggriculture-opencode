@@ -12,12 +12,29 @@ CAST = {"tiles": np.uint8, "units": np.uint8, "dmask": np.bool_, "dest": np.int8
 
 
 def load_shards(files):
-    """Concatenate shards with compact dtypes (~8.7 KB/step): tiles/units fit in uint8, labels in int8."""
-    data = {k: [] for k in KEYS}
+    """Concatenate shards with compact dtypes (~8.7 KB/step): tiles/units fit in uint8, labels in int8.
+    Two-pass streaming (preallocate then fill): peak is ~1x instead of ~2x. The old
+    list-then-concatenate peaked at 2x and OOM-killed full bc7 (3,506 games, ~25 GB) on 15 GB RAM."""
+    if not files: raise ValueError("no shard files")
+    with np.load(files[0]) as first:
+        dt = {k: (np.dtype(CAST[k]) if k in CAST else first[k].dtype) for k in KEYS}
+        shapes = {k: first[k].shape[1:] for k in KEYS}
+    ns = []; total = 0
     for f in files:
-        d = np.load(f)
-        for k in KEYS: data[k].append(d[k].astype(CAST[k]) if k in CAST else d[k])
-    return {k: np.concatenate(v) for k, v in data.items()}
+        with np.load(f) as d:
+            n = len(d["dest"])
+            for k in KEYS:
+                if d[k].shape[1:] != shapes[k]: raise ValueError(f"shape mismatch {f} {k}: {d[k].shape[1:]} vs {shapes[k]}")
+        ns.append(n); total += n
+    data = {k: np.empty((total,) + shapes[k], dtype=dt[k]) for k in KEYS}
+    off = 0
+    for f, n in zip(files, ns):
+        with np.load(f) as d:
+            for k in KEYS:
+                a = d[k]
+                data[k][off:off + n] = a if a.dtype == dt[k] else a.astype(dt[k])
+        off += n
+    return data
 
 
 def make_prev(data):
