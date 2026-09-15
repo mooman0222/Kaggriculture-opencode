@@ -63,6 +63,18 @@ class Policy2(nn.Module):
         return out
 
 
+def bc_loss_mkt(out, batch):
+    """市場ヘッドのみ (E058 テープ上乗せ用)。農場の dest/op/qty は学習・評価しない。"""
+    tg = market_targets_split(batch["mkt"].long())
+    l_sell = _mkt_ce(out["sell"], tg["sell"], N_MB); l_buyp = _mkt_ce(out["buyp"], tg["buyp"], N_MB); l_seed = _mkt_ce(out["seed"], tg["seed"], N_MB)
+    l_anim = _mkt_ce(out["anim"], tg["anim"], 5, 20.0); l_hire = _mkt_ce(out["hire"], tg["hire"], 13, 8.0); l_land = _mkt_ce(out["land"], tg["land"], 2, 30.0)
+    loss = l_sell + 0.5 * (l_buyp + l_seed + l_anim) + 0.5 * l_hire + 0.5 * l_land
+    with torch.no_grad():
+        acc = {"sell": (out["sell"].argmax(-1) == tg["sell"]).float().mean().item(), "hire": (out["hire"].argmax(-1) == tg["hire"]).float().mean().item(),
+               "seed": (out["seed"].argmax(-1) == tg["seed"]).float().mean().item(), "anim": (out["anim"].argmax(-1) == tg["anim"]).float().mean().item()}
+    return loss, acc
+
+
 def bc_loss2(out, batch):
     dest = batch["dest"].long(); present = dest >= 0; dop = batch["dop"].long()
     tgt_d = F.one_hot(dest.clamp(min=0), out["dest"].shape[-1]).bool() & present.unsqueeze(-1)

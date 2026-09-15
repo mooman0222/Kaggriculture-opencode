@@ -1,18 +1,18 @@
 """提出 id のエピソードを Kaggle から取り、対象チームの席を shard 化して JSON は捨てる (ストリーミング)。
 使い方: .venv/bin/python rl/fetch_episodes.py --sub 56156662 --team Majkel1337 --out tmp/rl/majkel [--n 400]"""
-import argparse, glob, json, os, subprocess, sys, tempfile
+import argparse, glob, json, os, shlex, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 from extract import extract_replay
-K = ".venv/bin/kaggle"
+K = shlex.split(os.environ.get("KAGGLE_BIN", ".venv/bin/kaggle"))
 ap = argparse.ArgumentParser(); ap.add_argument("--sub", required=True); ap.add_argument("--team", required=True); ap.add_argument("--out", required=True); ap.add_argument("--n", type=int, default=400)
 a = ap.parse_args(); os.makedirs(a.out, exist_ok=True)
-ids = [l.split()[0] for l in subprocess.run([K, "competitions", "episodes", a.sub], capture_output=True, text=True).stdout.split("\n")[2:] if l.strip() and l.split()[0].isdigit()][: a.n]
+ids = [l.split()[0] for l in subprocess.run([*K, "competitions", "episodes", a.sub], capture_output=True, text=True).stdout.split("\n")[2:] if l.strip() and l.split()[0].isdigit()][: a.n]
 have = {os.path.basename(p)[:-4] for p in glob.glob(a.out + "/*.npz")}
 tmp = tempfile.mkdtemp(prefix="ep_"); done = 0; skipped = 0
 for eid in ids:
     if eid in have: skipped += 1; continue
-    subprocess.run([K, "competitions", "replay", eid, "-p", tmp], capture_output=True)
+    subprocess.run([*K, "competitions", "replay", eid, "-p", tmp], capture_output=True)
     fs = glob.glob(f"{tmp}/episode-{eid}-replay.json")
     if not fs: continue
     try:

@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--lr", type=float, default=5e-5); ap.add_argument("--epochs", type=int, default=3); ap.add_argument("--bs", type=int, default=512); ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--ent", type=float, default=0.003); ap.add_argument("--vf", type=float, default=0.5); ap.add_argument("--opening", type=int, default=0)
     ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/iter)"); ap.add_argument("--temp", type=float, default=0.7, help="dest/op のサンプリング温度")
-    a = ap.parse_args(); dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    a = ap.parse_args(); dev = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     import rollout2; rollout2.TEMP = a.temp
     model = Policy().to(dev); model.load_state_dict(torch.load(a.init, map_location=dev)); opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.0)
     opps = [PolicyOpp(p, "cpu") if p.endswith(".pt") else ScriptedOpp(p) for p in a.opps]; opening = ScriptedOpp("agents/e058/main.py") if a.opening else None; fn = model_out_fn(model)

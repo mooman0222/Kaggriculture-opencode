@@ -3,7 +3,7 @@
 import argparse, glob, os, sys, time, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, torch
-from model2 import Policy2 as Policy, bc_loss2 as bc_loss
+from model2 import Policy2 as Policy, bc_loss2 as bc_loss, bc_loss_mkt
 import model2
 KEYS = ("tiles", "units", "items", "glob", "mkt", "dest", "dop", "dqty", "dmask")
 
@@ -39,11 +39,13 @@ def main():
     ap.add_argument("--bs", type=int, default=256); ap.add_argument("--lr", type=float, default=3e-4); ap.add_argument("--d", type=int, default=128); ap.add_argument("--layers", type=int, default=3)
     ap.add_argument("--val", type=float, default=0.1); ap.add_argument("--max-games", type=int, default=100000); ap.add_argument("--init", default=None)
     ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/sched/epoch/batch)"); ap.add_argument("--save-every", type=int, default=200)
+    ap.add_argument("--market-only", action="store_true", help="市場ヘッドのみ学習 (農場の dest/op/qty 損失を除外、E058 テープ上乗せ用)")
     a = ap.parse_args(); files = sorted(glob.glob(a.data, recursive=True)) if not a.data.endswith(".txt") else [l.strip() for l in open(a.data) if l.strip()]; random.Random(0).shuffle(files); files = files[: a.max_games]
+    loss_fn = bc_loss_mkt if a.market_only else bc_loss
     nv = max(1, int(len(files) * a.val)); val_files, tr_files = files[:nv], files[nv:]
     t0 = time.time(); tr = load_shards(tr_files); va = load_shards(val_files); tr["prev"] = make_prev(tr); va["prev"] = make_prev(va)
     print(f"games train {len(tr_files)} val {len(val_files)}; steps train {len(tr['dest'])} val {len(va['dest'])} [{time.time()-t0:.0f}s]", flush=True)
-    dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    dev = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     ops = tr["dop"][tr["dop"] >= 0]; freq = np.bincount(ops, minlength=44).astype(np.float64) + 10
     w = (freq.mean() / freq) ** 0.5; model2.OP_WEIGHT = torch.tensor(w / w.mean(), dtype=torch.float32); print("op class weights (min/max)", w.min().round(2), w.max().round(2))
     model = Policy(d=a.d, layers=a.layers).to(dev); print("params", sum(p.numel() for p in model.parameters()))
@@ -60,14 +62,14 @@ def main():
             if b % a.save_every == 0 and b > 0:
                 torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(), "epoch": ep, "batch": b}, state_path)
             idx = perm[b * a.bs:(b + 1) * a.bs]; batch = to_t(tr, idx, dev)
-            out = model(batch["tiles"], batch["units"], batch["items"], batch["glob"], dest=batch["dest"].long().clamp(min=0), prev=batch["prev"]); loss, acc = bc_loss(out, batch)
+            out = model(batch["tiles"], batch["units"], batch["items"], batch["glob"], dest=batch["dest"].long().clamp(min=0), prev=batch["prev"]); loss, acc = loss_fn(out, batch)
             opt.zero_grad(); loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0); opt.step(); sched.step(); tot += loss.item(); k += 1
             if b % 200 == 0: print(f"  ep {ep} b {b}/{steps_per_epoch} loss {loss.item():.3f} acc {acc} [{time.time()-t0:.0f}s]", flush=True)
         model.eval(); accs = []; vl = 0; m = 0
         with torch.no_grad():
             for b in range(0, len(va["dest"]), 1024):
                 idx = np.arange(b, min(b + 1024, len(va["dest"]))); batch = to_t(va, idx, dev)
-                out = model(batch["tiles"], batch["units"], batch["items"], batch["glob"], dest=batch["dest"].long().clamp(min=0), prev=batch["prev"]); loss, acc = bc_loss(out, batch); vl += loss.item() * len(idx); m += len(idx); accs.append(acc)
+                out = model(batch["tiles"], batch["units"], batch["items"], batch["glob"], dest=batch["dest"].long().clamp(min=0), prev=batch["prev"]); loss, acc = loss_fn(out, batch); vl += loss.item() * len(idx); m += len(idx); accs.append(acc)
         vacc = {k: round(sum(x[k] for x in accs) / len(accs), 3) for k in accs[0]}
         print(f"epoch {ep} train loss {tot/max(1,k):.3f} val loss {vl/m:.3f} val acc {vacc} [{time.time()-t0:.0f}s]", flush=True)
         torch.save(model.state_dict(), a.out); torch.save(model.state_dict(), a.out.replace('.pt', f'_ep{ep}.pt'))
