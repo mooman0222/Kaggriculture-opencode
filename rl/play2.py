@@ -10,7 +10,7 @@ from act2 import act_policy2
 
 class BCAgent:
     def __init__(self, path, d=128, layers=3, dev="cpu", temperature=0.0):
-        self.dev = torch.device(dev); self.model = Policy(d=d, layers=layers).to(self.dev); self.model.load_state_dict(torch.load(path, map_location=self.dev)); self.model.eval(); self.temp = temperature
+        self.dev = torch.device(dev); self.model = Policy(d=d, layers=layers).to(self.dev); self.model.load_state_dict(torch.load(path, map_location=self.dev), strict=False); self.model.eval(); self.temp = temperature
 
     def act(self, obs, seat):
         if int(obs["step"]) == 0: self.state = {}

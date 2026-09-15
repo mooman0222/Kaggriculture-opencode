@@ -28,7 +28,12 @@ class RLAgent:
         for i in range(n):
             lg = dl[i].copy()
             for c in claimed: lg[c] = -1e9
-            d = int(lg.argmax()); dest[i] = d; tx, ty = d % 10, d // 10
+            d = int(lg.argmax()); dest[i] = d
+            for _ in range(4):  # a destination where the unit would only PASS is wasted: fall back to the next-best tiles (mirrors rl/act2.py)
+                olg = self.pol.op_logits(H, dest)[0][i].copy(); olg[~F.legal_ops_at(obs, seat, i, d % 10, d // 10)] = -1e9
+                if int(olg.argmax()) != F.OP_INDEX["PASS"]: break
+                lg[d] = -1e9; d = int(lg.argmax()); dest[i] = d
+            tx, ty = d % 10, d // 10
             if (tx, ty) not in F.SHED_TILES: claimed.add(d)
             tg.append((tx, ty))
         opl, qtl = self.pol.op_logits(H, dest); ua = []
@@ -41,6 +46,11 @@ class RLAgent:
             elif name.startswith("PICKUP_"): ua.append(["PICKUP", name[7:], int(q)])
             elif name.startswith("PLACE_"): ua.append(["PLACE", name[6:], int(q)] if name[6:] in F.PRODUCTS else ["PLACE", name[6:]])
             else: ua.append([name])
+        left = {c: int(obs["private"]["seeds"].get(c, 0) or 0) for c in F.CROPS}  # engine drops every PLANT of a crop when requests exceed seeds held
+        for i, u in enumerate(ua):
+            if u and u[0] == "PLANT":
+                if left[u[1]] > 0: left[u[1]] -= 1
+                else: ua[i] = ["PASS"]; newprev[i, 1] = F.OP_INDEX["PASS"]
         mk = self.pol.market(H)
         mkt = np.concatenate([mk["sell"].argmax(-1), mk["buyp"].argmax(-1), mk["seed"].argmax(-1), mk["anim"].argmax(-1), [int(mk["hire"].argmax())], [int(mk["land"].argmax())]])
         a = A.decode_action(np.zeros(F.MAX_UNITS, dtype=int), np.zeros(F.MAX_UNITS, dtype=int), mkt, obs, seat)

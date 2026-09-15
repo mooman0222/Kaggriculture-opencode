@@ -19,6 +19,7 @@ MAX_UNITS = 16
 TILE_F, UNIT_F, ITEM_F, GLOB_F = 18, 4 + len(ITEMS) + 2, 9, 40
 SHED_TILES = {(4, 4), (5, 4), (4, 5), (5, 5)}
 LAND_PRICES = [1000, 2000, 4000]
+FIRST_YIELD_DAY = {"WHEAT": 2, "CARROT": 2, "TOMATO": 8, "STRAWBERRY": 10, "MELON": 10}  # sim.hpp CROPS; HARVEST is a no-op before this age
 
 # unit op classes
 OPS = (["PASS", "NORTH", "SOUTH", "EAST", "WEST"] + ["PLANT_" + c for c in CROPS] + ["WATER", "HARVEST", "FERTILIZE", "DIG", "BUILD_COOP", "BUILD_PASTURE"]
@@ -168,16 +169,18 @@ def legal_ops_at(obs, seat, unit_i, x, y):
         m[OP_INDEX["BUILD_COOP"]] = True; m[OP_INDEX["BUILD_PASTURE"]] = True; m[OP_INDEX["DIG"]] = True
     elif isinstance(tl, dict):
         if "animal" in tl:
-            if int(inv.get("WHEAT", 0) or 0) > 0: m[OP_INDEX["FEED"]] = True
-            m[OP_INDEX["CARE"]] = True
+            if int(inv.get("WHEAT", 0) or 0) > 0 and not tl.get("fed_today"): m[OP_INDEX["FEED"]] = True
+            if not tl.get("cared_today"): m[OP_INDEX["CARE"]] = True
             if int(tl.get("yield_units", 0) or 0) > 0: m[OP_INDEX["HARVEST"]] = True
             if tl.get("fertilizer_available"): m[OP_INDEX["COLLECT_FERTILIZER"]] = True
         else:
             kind = tl.get("kind")
             if kind == "WEED": m[OP_INDEX["DIG"]] = True
             elif kind == "PLANT":
-                m[OP_INDEX["WATER"]] = True; m[OP_INDEX["DIG"]] = True
-                if int(tl.get("yield_units", 0) or 0) > 0: m[OP_INDEX["HARVEST"]] = True
+                if not tl.get("watered_today"): m[OP_INDEX["WATER"]] = True
+                m[OP_INDEX["DIG"]] = True
+                day = int(obs["step"]) // 24
+                if int(tl.get("yield_units", 0) or 0) > 0 and day - int(tl.get("planted_day", day)) >= FIRST_YIELD_DAY.get(tl.get("crop"), 0): m[OP_INDEX["HARVEST"]] = True
                 if int(inv.get("FERTILIZER", 0) or 0) > 0: m[OP_INDEX["FERTILIZE"]] = True
             elif kind in ("COOP", "PASTURE"):
                 m[OP_INDEX["DIG"]] = True

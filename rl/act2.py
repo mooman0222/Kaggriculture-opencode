@@ -1,7 +1,10 @@
 """Inference for Policy2: sequential per-unit destination choice with tile claiming, shortest-path moves, op at arrival."""
 from __future__ import annotations
 import numpy as np, torch
-from features import encode, legal_ops_at, OPS, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS
+import os
+from features import encode, legal_ops_at, OPS, OP_INDEX, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS, CROPS
+RESELECT = os.environ.get("RL_RESELECT", "1") != "0"; RESELECT_TRIES = 4
+
 from actions import decode_action
 
 
@@ -10,6 +13,16 @@ def step_toward(pos, tgt):
     if tgt[0] != x: return ["EAST" if tgt[0] > x else "WEST"]
     if tgt[1] != y: return ["SOUTH" if tgt[1] > y else "NORTH"]
     return None
+
+
+def trim_plants(unit_actions, seeds):
+    """Engine drops EVERY PLANT of a crop when requests exceed seeds held: keep the first seeds[c] requests (farmer first), PASS the rest. Returns trimmed unit indices."""
+    left = {c: int(seeds.get(c, 0) or 0) for c in CROPS}; out = []
+    for i, ua in enumerate(unit_actions):
+        if ua and ua[0] == "PLANT":
+            if left[ua[1]] > 0: left[ua[1]] -= 1
+            else: unit_actions[i] = ["PASS"]; out.append(i)
+    return out
 
 
 def act_policy2(model, obs, seat, dev, temperature=0.0, rng=None, state=None):
@@ -24,13 +37,24 @@ def act_policy2(model, obs, seat, dev, temperature=0.0, rng=None, state=None):
         dl[:, H["locked"][0].cpu().numpy()] = -1e9
         mk = model.market(H)
     claimed = set(); dest_idx = np.zeros(MAX_UNITS, dtype=np.int64); acts = []
+    def arrival_op(i):
+        """Op the op-head would pick if unit i stood on its chosen destination now (engine-exact legality)."""
+        with torch.no_grad(): opl, _ = model.op_logits(H, torch.from_numpy(dest_idx).unsqueeze(0).to(dev))
+        tx, ty = int(dest_idx[i]) % 10, int(dest_idx[i]) // 10
+        lg = opl[0, i].cpu().numpy().copy(); lg[~legal_ops_at(obs, seat, i, tx, ty)] = -1e9
+        return int(lg.argmax())
     for i in range(n):
         lg = dl[i].copy()
         for c in claimed: lg[c] = -1e9
         if temperature > 0:
             p = np.exp((lg - lg.max()) / temperature); p /= p.sum(); d = int((rng or np.random).choice(100, p=p))
         else: d = int(lg.argmax())
-        dest_idx[i] = d; tx, ty = d % 10, d // 10
+        dest_idx[i] = d
+        if RESELECT:  # a destination where the unit would only PASS is wasted: fall back to the next-best tiles (BUILD fallbacks matter: structures come almost only from here)
+            for _ in range(RESELECT_TRIES):
+                if arrival_op(i) != OP_INDEX["PASS"]: break
+                lg[dest_idx[i]] = -1e9; dest_idx[i] = int(lg.argmax())
+        d = int(dest_idx[i]); tx, ty = d % 10, d // 10
         if (tx, ty) not in SHED_TILES: claimed.add(d)
         acts.append((tx, ty))
     with torch.no_grad():
@@ -50,6 +74,7 @@ def act_policy2(model, obs, seat, dev, temperature=0.0, rng=None, state=None):
         elif name.startswith("PICKUP_"): unit_actions.append(["PICKUP", name[7:], int(q)])
         elif name.startswith("PLACE_"): unit_actions.append(["PLACE", name[6:], int(q)] if name[6:] in PRODUCTS else ["PLACE", name[6:]])
         else: unit_actions.append([name])
+    for i in trim_plants(unit_actions, obs["private"]["seeds"]): newprev[i, 1] = OP_INDEX["PASS"]
     mkt = np.concatenate([mk["sell"][0].argmax(-1).cpu().numpy(), mk["buyp"][0].argmax(-1).cpu().numpy(), mk["seed"][0].argmax(-1).cpu().numpy(),
                           mk["anim"][0].argmax(-1).cpu().numpy(), [int(mk["hire"][0].argmax())], [int(mk["land"][0].argmax())]])
     a = decode_action(np.zeros(MAX_UNITS, dtype=int), np.zeros(MAX_UNITS, dtype=int), mkt, obs, seat)

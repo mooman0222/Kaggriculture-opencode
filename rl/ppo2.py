@@ -21,10 +21,13 @@ def main():
     ap.add_argument("--games", type=int, default=32); ap.add_argument("--opps", nargs="+", default=["third_party/public_agents/v41/main.py", "agents/e060/main.py"], help="main.py (スクリプト) か .pt (凍結した学習方策) を混在可")
     ap.add_argument("--lr", type=float, default=5e-5); ap.add_argument("--epochs", type=int, default=3); ap.add_argument("--bs", type=int, default=512); ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--ent", type=float, default=0.003); ap.add_argument("--vf", type=float, default=0.5); ap.add_argument("--opening", type=int, default=0)
-    ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/iter)"); ap.add_argument("--temp", type=float, default=0.7, help="dest/op のサンプリング温度")
+    ap.add_argument("--resume", action="store_true", help="<out>.state から再開 (model/opt/iter)"); ap.add_argument("--temp", type=float, default=0.3, help="dest/op のサンプリング温度")
+    ap.add_argument("--kl", type=float, default=0.05, help="初期方策 (--init) への KL ペナルティ係数 (ヘッド別、k3 推定)。BC からのドリフトの錨")
+    ap.add_argument("--warmup", type=int, default=5, help="最初の N iter は価値頭だけ学習 (方策は凍結)。BC は価値頭を学習していないため")
     a = ap.parse_args(); dev = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     import rollout2; rollout2.TEMP = a.temp
-    model = Policy().to(dev); model.load_state_dict(torch.load(a.init, map_location=dev)); opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.0)
+    model = Policy().to(dev); print("load:", model.load_state_dict(torch.load(a.init, map_location=dev), strict=False), flush=True); opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.0)
+    model0 = Policy().to(dev); model0.load_state_dict(torch.load(a.init, map_location=dev), strict=False); model0.eval(); fn0 = model_out_fn(model0)  # KL anchor
     opps = [PolicyOpp(p, "cpu") if p.endswith(".pt") else ScriptedOpp(p) for p in a.opps]; opening = ScriptedOpp("agents/e058/main.py") if a.opening else None; fn = model_out_fn(model)
     state_path = a.out + ".state"; start = 0
     if a.resume and os.path.exists(state_path):
@@ -46,11 +49,14 @@ def main():
                 ratio = torch.exp(logp - bt["logp"]); A = adv_t[idx].to(dev).unsqueeze(-1)
                 live = (bt["logp"] != 0)  # sub-actions that were actually taken (absent units / off-destination ops carry logp 0)
                 pg = -(torch.min(ratio * A, torch.clamp(ratio, 1 - a.clip, 1 + a.clip) * A) * live).sum() / live.sum().clamp(min=1)
-                vl = ((value - ret_t[idx].to(dev)) ** 2).mean(); loss = pg + a.vf * vl - a.ent * ent.mean()
+                with torch.no_grad(): logp0, _ = logp2(fn0, bt, act, per_head=True)
+                lr0 = logp0 - logp; kl = ((torch.exp(lr0) - lr0 - 1) * live).sum() / live.sum().clamp(min=1)  # k3 estimator of KL(pi || pi_init)
+                vl = ((value - ret_t[idx].to(dev)) ** 2).mean()
+                loss = a.vf * vl if it < a.warmup else pg + a.vf * vl - a.ent * ent.mean() + a.kl * kl
                 opt.zero_grad(); loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5); opt.step()
-                stats.append((pg.item(), vl.item(), ent.mean().item(), ((ratio - 1).abs() * live).sum().item() / live.sum().clamp(min=1).item()))
+                stats.append((pg.item(), vl.item(), ent.mean().item(), ((ratio - 1).abs() * live).sum().item() / live.sum().clamp(min=1).item(), kl.item()))
         s = np.mean(stats, 0)
-        print(f"it {it} margin {np.mean(margins):+7.0f} own {np.mean(own):7.0f} wins {sum(m > 0 for m in margins)}/{len(margins)} | pg {s[0]:.3f} vf {s[1]:.3f} ent {s[2]:.2f} |r-1| {s[3]:.3f} [{time.time()-t0:.0f}s]", flush=True)
+        print(f"it {it} margin {np.mean(margins):+7.0f} own {np.mean(own):7.0f} wins {sum(m > 0 for m in margins)}/{len(margins)} | pg {s[0]:.3f} vf {s[1]:.3f} ent {s[2]:.2f} |r-1| {s[3]:.3f} kl {s[4]:.4f}{' (warmup)' if it < a.warmup else ''} [{time.time()-t0:.0f}s]", flush=True)
         torch.save(model.state_dict(), a.out); torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "iter": it + 1}, state_path)
         if it % 10 == 9: torch.save(model.state_dict(), a.out.replace(".pt", f"_it{it+1}.pt"))
 

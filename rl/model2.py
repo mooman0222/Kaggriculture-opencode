@@ -23,7 +23,7 @@ class Policy2(nn.Module):
         self.dq = nn.Linear(d, d); self.dk = nn.Linear(d, d)
         self.op_mlp = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, N_OPS)); self.qty_mlp = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, N_QTY))
         self.sell_head = nn.Linear(d, N_MB); self.buyp_head = nn.Linear(d, N_MB); self.seed_head = nn.Linear(d, N_MB)
-        self.anim_head = nn.Linear(d, 3 * 5); self.hire_head = nn.Linear(d, 13); self.land_head = nn.Linear(d, 2); self.value_head = nn.Linear(d, 1)
+        self.anim_head = nn.Linear(d, 3 * 5); self.hire_head = nn.Linear(d, 13); self.land_head = nn.Linear(d, 2); self.value_head = nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, 1))  # critic on detached features: PPO value loss must not move the BC policy
 
     def encode(self, tiles, units, items, glob, prev=None):
         B = tiles.shape[0]; t = tiles.reshape(B, N_TILES, TILE_F)
@@ -54,7 +54,7 @@ class Policy2(nn.Module):
     def market(self, H):
         g, hi = H["g"], H["items"]; B = g.shape[0]
         return {"sell": self.sell_head(hi), "buyp": self.buyp_head(hi[:, [0, 8]]), "seed": self.seed_head(hi[:, :5]), "anim": self.anim_head(g).view(B, 3, 5),
-                "hire": self.hire_head(g), "land": self.land_head(g), "value": self.value_head(g).squeeze(-1)}
+                "hire": self.hire_head(g), "land": self.land_head(g), "value": self.value_head(g.detach()).squeeze(-1)}
 
     def forward(self, tiles, units, items, glob, dest=None, prev=None):
         H = self.encode(tiles, units, items, glob, prev); out = self.market(H); out["dest"] = self.dest_logits(H)

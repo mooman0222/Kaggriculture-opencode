@@ -95,7 +95,11 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 - 重み (git 管理外、`tmp/rl/`): `bc5_ep0〜3.pt` (v3 各 epoch)。学習データ shard: `tmp/rl/{majkel,mmpq,spataro,ymg}/`, `tmp/rl/pq/<team_id>/` (計 1,595 戦)、
   適応型チームだけのリスト `tmp/rl/adaptive_shards.txt` (1,174 戦)。公開データ: `tmp/data/replays_2026-09.parquet` (5.2 GB) と episodes/teams csv。
   tmp が消えていたら `rl/README.md` の手順 1 で再生成できる (API 取得 ~1 h、parquet 展開 ~7 min)。
-- 再開手順: (1) `bash tests/live_eval.sh` 等は不要、まず `.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 8` で現状を再確認
+- 2026-09-14 推論修正 B (act2/features/rollout2/rl_agent 共通): エンジン準拠の到着マスク + PLANT の種数トリム + 目的地の再選択 → **32 戦 own 59.6k±3.4k, margin −69k±4.3k** (修正前 43.9k / −107k)。評価は必ず 32 戦以上・SE 付きで (8 戦は seed 群で ±10k 振れる)。
+  診断の結論: 差はマクロ判断ではなく序盤 d0〜d10 の実行の穴 (PASS 3 倍、PLANT 空打ち、餌なしで家畜へ)。experiments.md「RL 診断」「RL 推論修正 B」行。
+- PPO3 実行中 (2026-09-14): `rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo3.pt --iters 100 --games 32 --warmup 6 --temp 0.3 --kl 0.1`、log `tmp/rl/ppo3.log`。
+  KL 錨 + critic 暖機 + detach 価値頭 (experiments.md「RL PPO3」)。10 iter ごとの `_itK.pt` を `rl/play2.py ckpt --games 32` で貪欲評価して基準 (59.6k / −69k) と比べる。
+- 再開手順: (1) まず `.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 32` で現状を再確認 (基準 own ≈ 60k)
   (2) 次の一手は experiments.md 最終行の「次」欄: PPO (`rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo1.pt --iters 100 --games 32 --temp 0.3`、
   相手に `.pt` を混ぜると凍結自己対戦) / 適応型限定データの BC (`--data tmp/rl/adaptive_shards.txt`) / 長期 BC (`--epochs 8 --resume`)。
   **BC と PPO を同時に走らせない** (MPS の wired メモリで 38 GB を使い切りスワップする)。学習は `<out>.state` に途中保存され `--resume` で続く。

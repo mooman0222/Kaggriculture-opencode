@@ -7,7 +7,8 @@ import numpy as np, torch, torch.nn.functional as F, kagsim
 from features import encode, legal_ops_at, OPS, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS
 from actions import decode_action
 from rollout import ScriptedOpp, load_py
-from act2 import step_toward
+from act2 import step_toward, trim_plants, RESELECT, RESELECT_TRIES
+from features import OP_INDEX
 
 N_OPS = len(OPS)
 
@@ -46,7 +47,7 @@ def model_out_fn(model):
     return fn
 
 
-def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=None, opening_steps=0):
+def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=None, opening_steps=0, trace=None):
     games = []
     for i in range(n_games):
         opp = random.choice(opponents); opp.reset(); seat = i % 2
@@ -64,19 +65,28 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
         with torch.no_grad():
             H = model.encode(batch["tiles"], batch["units"], batch["items"], batch["glob"], batch["prev"]); dl = model.dest_logits(H) / TEMP; mk = model.market(H)
         dl_np = dl.cpu().numpy(); present = np.stack([f["units"][:, 0] > 0 for f in feats])
+        if RESELECT:  # op-head logits for every (unit, destination) pair, to reject destinations where the unit would only PASS (same rule as act2)
+            with torch.no_grad():
+                d_ = H["units"].shape[-1]; z = torch.cat([H["units"].unsqueeze(2).expand(B, MAX_UNITS, 100, d_), H["own"].unsqueeze(1).expand(B, MAX_UNITS, 100, d_)], -1)
+                all_op = model.op_mlp(z).cpu().numpy()
         dest = np.zeros((B, MAX_UNITS), dtype=np.int64); dmask = np.zeros((B, MAX_UNITS, 100), dtype=bool)
         for b in range(B):
-            claimed = set(); locked = feats[b]["tiles"][0, :, :, 0].reshape(100) == 0
+            claimed = set(); locked = feats[b]["tiles"][0, :, :, 0].reshape(100) == 0; gm = games[b]
             for i in range(MAX_UNITS):
                 if not present[b, i]: dmask[b, i, 0] = True; continue
                 m = ~locked.copy()
                 for c in claimed: m[c] = False
                 if not m.any(): m[:] = ~locked
-                dmask[b, i] = m; lg = dl_np[b, i].copy(); lg[~m] = -1e9
-                if greedy: d = int(lg.argmax())
-                else:
-                    p = np.exp(lg - lg.max()); p /= p.sum(); d = int(np.random.choice(100, p=p))
-                dest[b, i] = d
+                lg = dl_np[b, i].copy(); lg[~m] = -1e9
+                for _ in range(RESELECT_TRIES + 1):
+                    if greedy: d = int(lg.argmax())
+                    else:
+                        p = np.exp(lg - lg.max()); p /= p.sum(); d = int(np.random.choice(100, p=p))
+                    if not RESELECT or _ == RESELECT_TRIES or m.sum() <= 1: break
+                    olg = all_op[b, i, d].copy(); olg[~legal_ops_at(obs[b], gm["seat"], i, d % 10, d // 10)] = -1e9
+                    if int(olg.argmax()) != OP_INDEX["PASS"]: break
+                    m[d] = False; lg[d] = -1e9  # rejected: excluded from the mask so the stored log-prob matches
+                dmask[b, i] = m; dest[b, i] = d
                 if (d % 10, d // 10) not in SHED_TILES: claimed.add(d)
         dest_t = torch.from_numpy(dest).to(dev)
         with torch.no_grad(): op_lg, q_lg = model.op_logits(H, dest_t); op_lg = op_lg / TEMP
@@ -112,7 +122,9 @@ def rollout2(model, dev, opponents, n_games=32, seed0=0, greedy=False, opening=N
                     elif name.startswith("PLACE_"): ua.append(["PLACE", name[6:], int(q)] if name[6:] in PRODUCTS else ["PLACE", name[6:]])
                     else: ua.append([name])
                 mkt = np.concatenate([act_np["sell"][b], act_np["buyp"][b], act_np["seed"][b], act_np["anim"][b], [act_np["hire"][b]], [act_np["land"][b]]])
+                for i in trim_plants(ua, o["private"]["seeds"]): prev[b, i, 1] = OP_INDEX["PASS"]  # mirror act2: trimmed units remember PASS
                 a = decode_action(np.zeros(MAX_UNITS, dtype=int), np.zeros(MAX_UNITS, dtype=int), mkt, o, s); a["farmer"] = ua[0] if ua else ["PASS"]; a["hands"] = ua[1:]
+            if trace is not None: trace.append((step, b, a))
             bopp = gm["opp"].act(g.observe(1 - s), 1 - s); g.step(*((a, bopp) if s == 0 else (bopp, a)))
             o2 = g.observe(0); m_own = float(o2["farms"][s]["money"]); m_opp = float(o2["farms"][1 - s]["money"])
             T["reward"].append(((m_own - gm["prev"][0]) - (m_opp - gm["prev"][1])) / 1000.0); gm["prev"] = (m_own, m_opp)
@@ -130,7 +142,7 @@ class PolicyOpp:
     """Frozen learned policy as an opponent (greedy Policy2 via act2) — for self-play in PPO."""
     def __init__(self, ckpt, dev="cpu"):
         from model2 import Policy2; from act2 import act_policy2
-        self.m = Policy2().to(dev); self.m.load_state_dict(torch.load(ckpt, map_location=dev)); self.m.eval(); self.dev = dev; self.act2 = act_policy2; self.state = {}
+        self.m = Policy2().to(dev); self.m.load_state_dict(torch.load(ckpt, map_location=dev), strict=False); self.m.eval(); self.dev = dev; self.act2 = act_policy2; self.state = {}
     def reset(self): self.state = {}
     def act(self, obs, seat):
         if int(obs["step"]) == 0: self.state = {}
