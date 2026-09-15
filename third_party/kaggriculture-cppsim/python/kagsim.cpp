@@ -14,6 +14,8 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
+#include "encode.hpp"
 #include <atomic>
 #include <thread>
 #include <algorithm>
@@ -315,6 +317,17 @@ struct Game {
     void step(const py::handle& a, const py::handle& b) {
         sim.step(conv_action(a), conv_action(b));
     }
+    py::dict encode(int player) const {
+        // RL observation tensors (rl/features.encode + rl/sp/legal_all) straight from engine state.
+        auto tiles = py::array_t<int16_t>({2, 10, 10, enc::TILE_F}); auto units = py::array_t<int16_t>({enc::RL_MAX_UNITS, enc::UNIT_F});
+        auto items = py::array_t<float>({N_PRODUCTS, enc::ITEM_F}); auto glob = py::array_t<float>({enc::GLOB_F});
+        auto legal = py::array_t<bool>({enc::RL_MAX_UNITS, 100, enc::N_OPS}); auto pos = py::array_t<int16_t>({enc::RL_MAX_UNITS}); auto money = py::array_t<float>({2}); auto prices = py::array_t<int32_t>({N_PRODUCTS}); auto seeds = py::array_t<int16_t>({N_CROPS});
+        enc::Out o{tiles.mutable_data(), units.mutable_data(), items.mutable_data(), glob.mutable_data(), legal.mutable_data(), pos.mutable_data(), money.mutable_data()};
+        enc::encode(sim, player, o);
+        for (int j = 0; j < N_PRODUCTS; ++j) prices.mutable_data()[j] = sim.st.market.prices[j];
+        for (int c = 0; c < N_CROPS; ++c) seeds.mutable_data()[c] = sim.st.farms[player].seeds[c];
+        py::dict d; d["tiles"] = tiles; d["units"] = units; d["items"] = items; d["glob"] = glob; d["legal"] = legal; d["pos"] = pos; d["money"] = money; d["prices"] = prices; d["seeds"] = seeds; d["step"] = sim.st.step; return d;
+    }
     bool done() const { return sim.st.done; }
     double reward(int p) const { return sim.reward(p); }
     int step_count() const { return sim.st.step; }
@@ -431,6 +444,7 @@ PYBIND11_MODULE(kagsim, m) {
         .def("step", &Game::step, py::arg("action_a"), py::arg("action_b"),
              "Advance one turn with raw action dicts "
              "({farmer, hands, market}).")
+        .def("encode", &Game::encode, py::arg("player"), "RL observation tensors for one seat (see python/encode.hpp).")
         .def("reward", &Game::reward, py::arg("player"))
         .def("telemetry", &Game::telemetry, py::arg("player"),
              "Settle telemetry for one player: counters of what the engine "

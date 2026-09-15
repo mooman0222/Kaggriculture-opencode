@@ -90,30 +90,31 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 - 適応型の記録行動をテープ再生 (Majkel / MMPQ): 購買タイミングが崩れて崩壊。
 - 上位ルートの丸ごと再生 (E019 期) と部分移植 (E026/E045)。
 
-## RL 路線 (2026-09-14 夜、ユーザー判断で本線): Transformer 方策の模倣学習 → PPO
+## RL 路線 (Transformer 方策、ユーザー方針: 諦めない) — 現在地 2026-09-15 夜
 
-- 目的: 1 位 (適応型 Majkel 3190) に勝つ学習エージェント。参照解法 = PTCG 1 位 (2.24M Transformer + PPO 自己対戦)。時間は制約にしない。
-- コードは `rl/` (手順は `rl/README.md`)、配備先は `agents/rl_agent/` (numpy 推論、`rl/export_agent.py ckpt` で重みを書き出す)。
-- 到達点: **v3 (目的タイル + 作業 + 直前決定の特徴)** を 1,503 戦で 4 epoch 学習 → kagsim 対 v41 で own bank 50〜57k (崩壊なし、v41 は 150k)。
-  v1 (方向を直接予測) と v2 (直前決定なし) は倉庫で固まって崩壊。詳細は experiments.md の RL-BC 行。
-- 重み (git 管理外、`tmp/rl/`): `bc5_ep0〜3.pt` (v3 各 epoch)。学習データ shard: `tmp/rl/{majkel,mmpq,spataro,ymg}/`, `tmp/rl/pq/<team_id>/` (計 1,595 戦)、
-  適応型チームだけのリスト `tmp/rl/adaptive_shards.txt` (1,174 戦)。公開データ: `tmp/data/replays_2026-09.parquet` (5.2 GB) と episodes/teams csv。
-  tmp が消えていたら `rl/README.md` の手順 1 で再生成できる (API 取得 ~1 h、parquet 展開 ~7 min)。
-- 2026-09-14 推論修正 B (act2/features/rollout2/rl_agent 共通): エンジン準拠の到着マスク + PLANT の種数トリム + 目的地の再選択 → **32 戦 own 59.6k±3.4k, margin −69k±4.3k** (修正前 43.9k / −107k)。評価は必ず 32 戦以上・SE 付きで (8 戦は seed 群で ±10k 振れる)。
-  診断の結論: 差はマクロ判断ではなく序盤 d0〜d10 の実行の穴 (PASS 3 倍、PLANT 空打ち、餌なしで家畜へ)。experiments.md「RL 診断」「RL 推論修正 B」行。
-- PPO3 (2026-09-14 夜、Mac): 暖機 3 iter で MPS の Metal コンパイラ切断により停止 (own 55〜57k で方策は無傷)。`--resume` で続けられる。コマンド: `rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo3.pt --iters 100 --games 32 --warmup 6 --temp 0.3 --kl 0.1`、log `tmp/rl/ppo3.log`。
-  KL 錨 + critic 暖機 + detach 価値頭 (experiments.md「RL PPO3」)。10 iter ごとの `_itK.pt` を `rl/play2.py ckpt --games 32` で貪欲評価して基準 (59.6k / −69k) と比べる。
-- 再開手順: (1) まず `.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 32` で現状を再確認 (基準 own ≈ 60k)
-  (2) 次の一手は experiments.md 最終行の「次」欄: PPO (`rl/ppo2.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/ppo1.pt --iters 100 --games 32 --temp 0.3`、
-  相手に `.pt` を混ぜると凍結自己対戦) / 適応型限定データの BC (`--data tmp/rl/adaptive_shards.txt`) / 長期 BC (`--epochs 8 --resume`)。
-  **BC と PPO を同時に走らせない** (MPS の wired メモリで 38 GB を使い切りスワップする)。学習は `<out>.state` に途中保存され `--resume` で続く。
+- 目的: 1 位 (適応型 Majkel 3226) に勝つ学習エージェント。Majkel 本人の PTCG 記事と公開コード (`tmp/pkmn-kaggle`、memory/transformer-ppo-reference) が参照。
+- コード: `rl/` (手順 `rl/README.md`)。BC = `train_bc2.py` + `model2.py` (Policy2: 目的タイル+作業+市場+価値)、推論 = `act2.py` (到着マスク・PLANT トリム・目的地再選択)、
+  自己対戦 PPO = `rl/sp/` (共有メモリ並列環境 `vec_env.py`、バッチ推論 `policy_batch.py`、学習器 `train.py`、記録相手プール `build_tapes*.py`)、
+  C++ 観測エンコーダ = kagsim `Game.encode(seat)` (`third_party/kaggriculture-cppsim/python/encode.hpp`、Python 版と完全一致、22 µs)。配備 = `agents/rl_agent/` (`export_agent.py`)。
+- 到達点: BC v3 (bc5_ep3、1,503 局) + 推論修正 → **対 v41 貪欲 32 戦 own 59.6k / margin −69k** (基準)。実戦上位は同条件で own 90〜100k。
+- **PPO はこの計算資源では成立しない (3 走で確定)**: PPO3 (単発 32 局/iter)、SP1 (自己対戦 2.4k 決定/s)、SP3 (Majkel レシピ移植: 決定単位の損失・解析 KL・critic 暖機・共有価値・記録相手プール) の全てが
+  1,000〜3,000 局で「自己対戦内では前進、外部相手には効かず、やがて発散」(SP3 it50: 10k/−140k)。Majkel は 5×10^7 局。再挑戦は 10^6 局/日級の計算資源 (GCP T4 24h ≈ $0.75/h) が前提。
+- **現在の本線 = BC のスケール**: 勝者側の席だけの shard (`rl/extract_winners.py` → `tmp/rl/bcw/` 2,061 + majkel 306 + mmpq 125 = `tmp/rl/bc6data/`)。
+  **bc6 は Kaggle GPU で実行中** (kernel `mmn0222/kaggriculture-bc6`、dataset `mmn0222/kaggriculture-rl-bc6`、`rl/kaggle/`)。Mac 版 bc6 は epoch 0 まで (43.2k/−95k、`tmp/rl/bc6_ep0.pt`)。
+  結果取得: `kaggle kernels output mmn0222/kaggriculture-bc6 -p tmp/kaggle_out` → `eval.txt` (各 epoch の対 v41 32 戦)。
+- 既知の構造問題 (ユーザー指摘・Majkel 比較): op 精度は教師強制 (正解目的地で条件付け、prev は正解履歴) の値で閉ループとは乖離する。Majkel は履歴特徴なし・1 決定 = 1 候補トークンの一段表現で回避し、閉ループ誤差は PPO に任せている。
+- 次の手 (優先順): (1) bc6 の epoch 別閉ループ評価で基準 59.6k/−69k を超えるか、(2) prev の scheduled sampling と予測目的地での作業学習 (BC 側の閉ループ対策)、
+  (3) 一段の option 表現 (ユニット × 実行可能な (タイル, 作業) 候補から 1 つ選ぶ、prev 廃止) への設計変更、(4) 31〜60 位の直近リプレイ (`tmp/top0915b`) の勝者側を足した bc7。
+- データ源: georgymamarin parquet (`tmp/data/replays_2026-09.parquet`、9 月前半 38k 局、最新版も同内容)、直近上位は API (`tests/fetch_top.py --top N --per M`) が唯一の源。
+  記録相手プール: `tmp/rl/tapes.pkl` (実戦 606 局)、`tmp/rl/tapes_top.pkl` (上位 30 + 2650 帯 1,551 本)。tmp が消えたら `rl/README.md` の手順で再生成。
+- Mac の制約: BC と PPO を同時に走らせない (MPS メモリ)、fp16 は MPS で落ちる、Adam の 1 歩目は lr 1e-5 + ウォームアップでないと方策が 9 nat 動く。
 
 ## 次のステップ
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
 2. ahmedberatozer / yhay81 の新版監視: `kaggle kernels list -s kaggriculture --sort-by dateRun`。新テープは手順 2 で表に足す (1 版 1 時間)。
-3. 上位帯との差 (世界横断で安定して稼ぐ農場) はプランナー路線でしか埋まらないが、壁は経路効率。再開するなら
-   「テープの巡回路 (ハンド別の日次訪問順) を抽出して route にする」から (`agents/legacy/live_e/planner.py` 参照)。
+3. RL 路線: Kaggle の bc6 結果 (`eval.txt`) を見て、prev の scheduled sampling → option 表現の順で BC の閉ループ対策 (上の「RL 路線」節)。
+4. 上位帯との差はプランナー路線でしか埋まらないが壁は経路効率。再開するなら「テープの巡回路を抽出して route にする」から (`agents/legacy/live_e/planner.py`)。
 
 ## ナレッジの扱い
 

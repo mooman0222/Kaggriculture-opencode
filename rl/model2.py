@@ -54,7 +54,7 @@ class Policy2(nn.Module):
     def market(self, H):
         g, hi = H["g"], H["items"]; B = g.shape[0]
         return {"sell": self.sell_head(hi), "buyp": self.buyp_head(hi[:, [0, 8]]), "seed": self.seed_head(hi[:, :5]), "anim": self.anim_head(g).view(B, 3, 5),
-                "hire": self.hire_head(g), "land": self.land_head(g), "value": self.value_head(g.detach()).squeeze(-1)}
+                "hire": self.hire_head(g), "land": self.land_head(g), "value": self.value_head(g).squeeze(-1)}
 
     def forward(self, tiles, units, items, glob, dest=None, prev=None):
         H = self.encode(tiles, units, items, glob, prev); out = self.market(H); out["dest"] = self.dest_logits(H)
