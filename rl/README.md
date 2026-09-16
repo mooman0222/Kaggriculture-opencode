@@ -64,6 +64,20 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 
 **bc16 (完了)**: bc15_ep3 の継続は ep0 が同格 (94.4k / −14.3k)、以降は崩壊 (ep3 64.6k)。epoch は合計 4〜5 が上限で、**残る本命の手はデータ量 (Majkel の日次エピソード追加)**。次に効く見込みの手: 市場層の売り時刻 (夕方一括、規則 C で +3〜5k、experiments.md「bc15 vs E065 の負け方」)、d9〜15 のメロン収穫の遅れ (残り 13k) の調査。
 
+### 次にすること (2026-09-16 深夜、優先順)
+
+主軸は **Majkel との差を埋める**こと。E065 との 18k 差 (experiments.md「bc15 vs E065 の負け方」) は別問題ではなく、Majkel の行動 (d10 にメロン 12 個を収穫して即売) を写し損ねた一断面。E065 個別のルール積み増しはしない。
+
+1. **売り規則 C を市場層に載せる** (1 時間、+3〜5k、32 戦で確認済み): hour ≥ 20 に小麦・肥料以外の倉庫在庫を全量 SELL、モデルの売り注文は小麦・肥料分だけ残す、注文は 10 件以内。
+   実装先は `act3.py` の市場デコード後 (scratchpad の `ab_sellrule.py` 規則 C が仕様)。農場の推論細工ではなく市場層のルールなので方針の対象外。A/B は `play3.py --games 32` (対 v41) と `--vs agents/e065/main.py --games 16`。
+2. **メロン収穫の遅れの診断** (1 時間): bc15 は d10 にメロンを 4 個/日しか収穫せず (E065 は 12 個)、倉庫に 48 個溜める。Majkel の label (`tmp/rl/majkel_all`, dop=HARVEST at kind PLANT crop MELON) で収穫日の分布を出し、bc15 の閉ループと比べて原因を切り分ける:
+   ① 保持 option が給水に固定されて切り替わらない → 保持の解除条件の**バグ修正** (到着前でも同タイルで優先度の高い作業が出たら再決定、等)、② HARVEST の到着合法性 (`FIRST_YIELD_DAY`、`yield_units`) が demo とずれる → `features.legal_ops_at` / `sp/legal_all.py` の修正、③ モデルが選ばない → データ側 (3.) へ。
+   ①②なら残り 13k のかなりの部分が戻る見込み。
+3. **データ量を増やす** (学習側で唯一実績のある手、+500 局で +7k): Majkel のエピソードは日 50 局前後増える。`rl/fetch_episodes.py --sub 56156662 / 56216119 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` で追加し、
+   bc9k_ep3 から 4 epoch lr 2e-4 (bc15 レシピ) で bc17。新しい提出が出たら (Majkel が方策を更新したら) その id も足す。合計 4〜5 epoch を超えない (bc16 で崩壊)。
+4. **配備準備**: `export_agent.py` を Policy3 対応 (numpy 推論、`act3.py` 相当 + 規則 C) にし、bc15_ep3 / bc16k_ep0 を `agents/rl_agent/` に出して `tests/kag_eval.py` で提出物として検証。E065 を 16 戦で上回ったら提出候補 (提出はユーザー確認)。
+5. やらないこと: epoch 追加、PPO (再凍結、規模が前提)、農場側の推論強制・班分け・待機ラベル・自己軌跡 (全部不発)。
+
 ### データと再開 (別 PC)
 
 - **取得済みデータと重み**: Kaggle dataset **`mmn0222/kaggriculture-rl-majkel0916` v3** = `data/majkel_all/` (Majkel 713 局 = 提出 56156662 450 局 + 56216119 263 局、119MB)、`ckpt/` (bc9k_ep3、bc13_ep3、**bc15_ep3** = 現最良)、`tapes/tapes_top.pkl` (記録相手 190MB、PPO 用)。

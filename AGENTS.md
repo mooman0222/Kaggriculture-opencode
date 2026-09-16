@@ -110,7 +110,7 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
 2. ahmedberatozer / yhay81 の新版監視: `kaggle kernels list -s kaggriculture --sort-by dateRun`。新テープは手順 2 で表に足す (1 版 1 時間)。
-3. RL 路線 (手順は rl/README.md「方針」「データと再開」節): (a) bc16 の `eval.txt` で epoch 追加の効果を判定、(b) Majkel のエピソードを日次で足して再学習、(c) 提出 (E065) を超えたら `export_agent.py` を Policy3 対応して配備。PPO は再凍結。
+3. RL 路線 (手順と優先順は rl/README.md「次にすること」節): (1) 売り規則 C を市場層へ (+3〜5k)、(2) メロン収穫の遅れの診断 (保持 option / 合法判定のバグか)、(3) Majkel エピソードの日次追加 → bc17、(4) `export_agent.py` の Policy3 対応と配備検証。epoch 追加は打ち止め (bc16 崩壊)、PPO は再凍結。
 4. 上位帯との差はプランナー路線でしか埋まらないが壁は経路効率。再開するなら「テープの巡回路を抽出して route にする」から (`agents/legacy/live_e/planner.py`)。
 
 ## ナレッジの扱い
