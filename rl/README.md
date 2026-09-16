@@ -42,7 +42,8 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 | bc11k_ep3 | 同 + PASS_IDLE_WEIGHT 0.1 (`rl/kaggle11/`) | 57.8k | 待機は demo 並みに減るが浮いた手は MOVE/DIG へ |
 | bc12k_ep3 | 同 + 自己軌跡 200 局混合 (`rl/kaggle12/`, `rollout3.py`) | 39.8k | 自分の欠点を強化して悪化 |
 | **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
-| bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 飽和。最良は bc13_ep3 |
+| bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 200 局では飽和 |
+| **bc15_ep3** | **bc9k_ep3 から Majkel 2 提出の全量 713 局で 4 epoch lr 2e-4 (Mac 54 分)** | **32 戦 95.4k / −17.1k / 2 勝** | 現在の最良。dataset `mmn0222/kaggriculture-rl-majkel0916` v3 (data/majkel_all, ckpt/bc15_ep3.pt) |
 
 ### 診断で分かったこと (scratchpad の診断スクリプトは会話ログ、結論は experiments.md 09-16 行)
 
@@ -66,7 +67,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
   `kaggle datasets download mmn0222/kaggriculture-rl-majkel0916 -p /tmp/kaggle_ds --force` → 解凍 → `tmp/rl/majkel_0916/`, `tmp/rl/*.pt`, `tmp/rl/tapes_top.pkl` へ。
 - **追加取得**: LB csv は `kaggle competitions leaderboard kaggriculture --download -p DIR`。`tests/fetch_top.py --lb <csv> --top 1 --per 200 --out tmp/top1_<date>` はベスト提出 1 本の直近 200 局まで。
   他提出も取るには `fetch_top.py` の `subs[:1]` のループを広げる (submission id ごとに `ApiListSubmissionEpisodesRequest`、episode id で重複排除)。
-  shard 化: `rl/extract.py --glob 'tmp/top1_*/*/episode-*.json' --team Majkel1337 --out tmp/rl/majkel_all`。旧 Majkel shard (`tmp/rl/majkel`, 8 月、306 局) は旧方策なので混ぜない。
+  shard 化: `rl/extract.py --glob 'tmp/top1_*/*/episode-*.json' --team Majkel1337 --out tmp/rl/majkel_all`。`tmp/rl/majkel` (306 局) は提出 56156662 (9/11、3190.8) のもので現行方策に近い。Majkel の公開提出は 56156662 (450 局) と 56216119 (263 局) の 2 本 (09-16 時点)、`rl/fetch_episodes.py --sub <id> --team Majkel1337 --out tmp/rl/majkel_all --n 1000` で全量取れる (200 局上限は fetch_top 側の制限)。
 - **学習 (Mac MPS 4 分/epoch、RTX3060Ti なら数分)**: `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_all/*.npz' --out tmp/rl/bc15.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4`
 - **評価**: `.venv/bin/python rl/play3.py tmp/rl/bc15_ep3.pt --games 32` と診断 (op 数・渇死・2 日放置は会話ログの scratchpad スクリプト相当; `play3.py --debug` 相当は未実装、必要なら bc13 の診断値を README 上の表と比べる)。
 - **Kaggle で回す場合**: コードは dataset `mmn0222/kaggriculture-rl-code` (rl/ を平置き、`kaggle datasets version -p tmp/kaggle_code -r zip` で更新)、bc7 データは `mmn0222/kaggriculture-rl-bc7`、
