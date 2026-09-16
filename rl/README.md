@@ -44,6 +44,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 | **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
 | bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 200 局では飽和 |
 | **bc15_ep3** | **bc9k_ep3 から Majkel 2 提出の全量 713 局で 4 epoch lr 2e-4 (Mac 54 分)** | **32 戦 95.4k / −17.1k / 2 勝** | 現在の最良。dataset `mmn0222/kaggriculture-rl-majkel0916` v3 (data/majkel_all, ckpt/bc15_ep3.pt) |
+| bc16k_ep0〜3 | bc15_ep3 から同データで 4 epoch 継続 lr 1e-4 (Kaggle `rl/kaggle14`) | ep0 94.4k / −14.3k / 6 勝 → ep3 64.6k / −84k | 5 epoch 目までは同格、以降は val が上がりながら閉ループ崩壊。epoch は打ち止め |
 
 ### 診断で分かったこと (scratchpad の診断スクリプトは会話ログ、結論は experiments.md 09-16 行)
 
@@ -61,8 +62,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 4. 推論側の細工 (補完層・班分け・復号規則・待機ラベル・自己軌跡) は全部効かなかったので再挑戦しない。
 5. 配備には `export_agent.py` の Policy3 対応 (numpy 推論) が要る。提出を超えたら着手。
 
-**実行中 (2026-09-16 夜)**: bc16 = bc15_ep3 を同 713 局で 4 epoch 継続 (lr 1e-4)、Kaggle `mmn0222/kaggriculture-bc16-policy3` (`rl/kaggle14/run_bc16.py`)。
-結果: `.venv/bin/kaggle kernels output mmn0222/kaggriculture-bc16-policy3 -p tmp/kaggle_out_bc16 --force && cat tmp/kaggle_out_bc16/eval.txt` (各 epoch の対 v41 32 戦)。bc15_ep3 の 95.4k / −17.1k を超えるかで判定。
+**bc16 (完了)**: bc15_ep3 の継続は ep0 が同格 (94.4k / −14.3k)、以降は崩壊 (ep3 64.6k)。epoch は合計 4〜5 が上限で、**残る本命の手はデータ量 (Majkel の日次エピソード追加)**。次に効く見込みの手: 市場層の売り時刻 (夕方一括、規則 C で +3〜5k、experiments.md「bc15 vs E065 の負け方」)、d9〜15 のメロン収穫の遅れ (残り 13k) の調査。
 
 ### データと再開 (別 PC)
 
