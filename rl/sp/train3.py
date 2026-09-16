@@ -76,6 +76,7 @@ def main():
     ap.add_argument("--promote-min", type=int, default=150)
     ap.add_argument("--seed0", type=int, default=100000)
     ap.add_argument("--dev", default="mps")
+    ap.add_argument("--max-minutes", type=float, default=0, help="stop cleanly after this wall-clock budget (Kaggle kernels lose their output at the 12 h cap)")
     a = ap.parse_args()
     dev = torch.device(a.dev)
     torch.manual_seed(0)
@@ -120,8 +121,12 @@ def main():
 
     held = np.full((n, MAX_UNITS), -1, dtype=np.int32)
     log = open(a.out + ".log", "a")
+    started = time.time()
     try:
         for it in range(it0, a.iters):
+            if a.max_minutes and time.time() - started > a.max_minutes * 60:
+                print(f"wall-clock budget reached at iter {it}", flush=True)
+                break
             t0 = time.time()
             model.eval()
             l_slots, t_slots = slot_sets()

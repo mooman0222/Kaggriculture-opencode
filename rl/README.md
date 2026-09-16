@@ -42,7 +42,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 | bc11k_ep3 | 同 + PASS_IDLE_WEIGHT 0.1 (`rl/kaggle11/`) | 57.8k | 待機は demo 並みに減るが浮いた手は MOVE/DIG へ |
 | bc12k_ep3 | 同 + 自己軌跡 200 局混合 (`rl/kaggle12/`, `rollout3.py`) | 39.8k | 自分の欠点を強化して悪化 |
 | **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
-| bc14 | bc13_ep3 から継続 4 epoch lr 1e-4 | 実行中 | |
+| bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 飽和。最良は bc13_ep3 |
 
 ### 診断で分かったこと (scratchpad の診断スクリプトは会話ログ、結論は experiments.md 09-16 行)
 
@@ -51,14 +51,26 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 - 推論側の補完 (欠品なら倉庫へ・待機時に強制) と班分けマスクはいずれも悪化〜崩壊。方策は塞がれた option の代わりに PASS を選ぶ。
 - 物差し: 得点のほかに **PASS ≦ 100 / WATER ≧ 1,300 / 2 日放置 ≦ 2% / 家畜逃走 ≈ 0** (1 位の値)。
 
+### 方針 (2026-09-16 夜、ユーザー合意)
+
+1. **本命 = 1 位 Majkel1337 の実戦だけを教師にした BC のスケール**。200 局で +30k (bc13) の事実が根拠。次は別提出のエピソードも辿って 400〜600 局にし、bc9k_ep3 から同じレシピ (4 epoch、lr 2e-4) で bc15。
+   判定は `play3.py --games 32` (bc13_ep3 88.5k / −27.8k を超えるか) と 1 位の物差し (PASS / WATER / 2 日放置 / 渇死)。継続 epoch (bc14) は飽和済みなので、伸ばすのはデータ量。
+2. **PPO は検証扱い** (成功見込み 3〜4 割): 前 3 走の敗因のうち決定数と信用配分には対応 (保持 option、渇死/逃走の密報酬、初期値 bc13)、規模と KL 錨は未解決。
+   Kaggle で 2.5 時間の塊ごとに回し、**停止基準 = it25〜50 で渇死・逃走が減らない、または 32 戦が bc13_ep3 を下回る**。満たさなければ 1 塊で凍結に戻す。
+3. 推論側の細工 (補完層・班分け・復号規則・待機ラベル・自己軌跡) は全部効かなかったので再挑戦しない。
+4. 配備には `export_agent.py` の Policy3 対応 (numpy 推論) が要る。bc13 級が安定したら着手。
+
 ### データと再開 (別 PC)
 
-- Majkel 200 局: `tests/fetch_top.py --lb <LB csv> --top 1 --per 200 --out tmp/top1_0916` (LB csv は `kaggle competitions leaderboard kaggriculture --download`) → `rl/extract.py --glob 'tmp/top1_0916/*/episode-*.json' --team Majkel1337 --out tmp/rl/majkel_0916`。
-  取得済みのものは Kaggle dataset **`mmn0222/kaggriculture-rl-majkel0916`** (data/majkel_0916 200 shard 35MB + ckpt/bc9k_ep3.pt, bc13_ep3.pt)。
-- 学習: `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_0916/*.npz' --out tmp/rl/bc13.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4` (Mac MPS 4 分/epoch、RTX3060Ti なら更に速い)。
-- 評価: `.venv/bin/python rl/play3.py tmp/rl/bc13_ep3.pt --games 32`。
-- Kaggle で回す場合: コードは dataset `mmn0222/kaggriculture-rl-code` (rl/ を平置き、`kaggle datasets version -p tmp/kaggle_code -r zip` で更新)、bc7 データは `mmn0222/kaggriculture-rl-bc7`、bc9 の重みは kernel 出力を `kernel_sources` で参照 (`rl/kaggle10〜12/kernel-metadata.json`)。
-  投入前に `run_bcN.py` を偽の `/kaggle/input` で乾式実行する (bc12 は経路探索と変数定義で 3 回落ちた)。
+- **Majkel 200 局 (取得済み)**: Kaggle dataset **`mmn0222/kaggriculture-rl-majkel0916`** (data/majkel_0916 200 shard 35MB、ckpt/bc9k_ep3.pt・bc13_ep3.pt、tapes/tapes_top.pkl 190MB)。
+  `kaggle datasets download mmn0222/kaggriculture-rl-majkel0916 -p /tmp/kaggle_ds --force` → 解凍 → `tmp/rl/majkel_0916/`, `tmp/rl/*.pt`, `tmp/rl/tapes_top.pkl` へ。
+- **追加取得**: LB csv は `kaggle competitions leaderboard kaggriculture --download -p DIR`。`tests/fetch_top.py --lb <csv> --top 1 --per 200 --out tmp/top1_<date>` はベスト提出 1 本の直近 200 局まで。
+  他提出も取るには `fetch_top.py` の `subs[:1]` のループを広げる (submission id ごとに `ApiListSubmissionEpisodesRequest`、episode id で重複排除)。
+  shard 化: `rl/extract.py --glob 'tmp/top1_*/*/episode-*.json' --team Majkel1337 --out tmp/rl/majkel_all`。旧 Majkel shard (`tmp/rl/majkel`, 8 月、306 局) は旧方策なので混ぜない。
+- **学習 (Mac MPS 4 分/epoch、RTX3060Ti なら数分)**: `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_all/*.npz' --out tmp/rl/bc15.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4`
+- **評価**: `.venv/bin/python rl/play3.py tmp/rl/bc15_ep3.pt --games 32` と診断 (op 数・渇死・2 日放置は会話ログの scratchpad スクリプト相当; `play3.py --debug` 相当は未実装、必要なら bc13 の診断値を README 上の表と比べる)。
+- **Kaggle で回す場合**: コードは dataset `mmn0222/kaggriculture-rl-code` (rl/ を平置き、`kaggle datasets version -p tmp/kaggle_code -r zip` で更新)、bc7 データは `mmn0222/kaggriculture-rl-bc7`、
+  重みは dataset か kernel 出力 (`kernel_sources`)。投入前に `run_*.py` を偽の `/kaggle/input` で乾式実行する (bc12 は経路探索と変数定義で 3 回落ちた)。カーネルは完了時にしか出力を保存しない。
 
 ## 自己対戦 PPO (`rl/sp/`、2026-09-15) — 基盤は完成、学習は規模不足で凍結
 
@@ -70,6 +82,9 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
   (密報酬に **渇死 1 株 −0.05・逃走 1 頭 −0.2** を追加、他は train.py 同様)。log-prob 再計算誤差 0、決定は 1 手 2.8〜3.9/席。
   実行例: `caffeinate -i .venv/bin/python rl/sp/train3.py --init tmp/rl/bc13_ep3.pt --out tmp/rl/sp4.pt --workers 8 --games 32 --T 96 --lr 1e-5 --kl 0.02 --temp 0.7 --dense 0.2 --death 0.05 --escape 0.2 --tape-frac 0.25 --critic-warmup 60`
   判定は 25 iter ごとの `_itK.pt` を `play3.py --games 32` と上の物差しで。前 3 走は it39〜50 で崩れた。
+- **Kaggle 実行 (2026-09-16 夜、`rl/kaggle13/run_sp4.py`、kernel `mmn0222/kaggriculture-sp4-policy3-ppo`)**: 初期値 bc13_ep3、GPU、4 worker × 48 局、学習 150 分 (`--max-minutes`) → 全 `_itK.pt` を対 v41 32 戦 → `eval.txt`。
+  続きは同カーネルを `kernel_sources` に足して再投入 (`sp4k.pt.state` を見つけて `--resume`)。結果取得 `kaggle kernels output mmn0222/kaggriculture-sp4-policy3-ppo -p tmp/kaggle_out_sp4 --force`。
+  この PC での本走 (it2 まで) は暖機中で |r−1|=0、渇死 477→2347/iter (d0→d12 の成長分)。
 
 ## C++ 観測エンコーダ
 
