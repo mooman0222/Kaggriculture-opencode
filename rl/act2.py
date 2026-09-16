@@ -4,6 +4,7 @@ import numpy as np, torch
 import os
 from features import encode, legal_ops_at, OPS, OP_INDEX, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS, CROPS
 RESELECT = os.environ.get("RL_RESELECT", "1") != "0"; RESELECT_TRIES = 4
+COMMIT_DEST = os.environ.get("RL_COMMIT_DEST", "1") != "0"
 
 from actions import decode_action
 
@@ -46,7 +47,11 @@ def act_policy2(model, obs, seat, dev, temperature=0.0, rng=None, state=None):
     for i in range(n):
         lg = dl[i].copy()
         for c in claimed: lg[c] = -1e9
-        if temperature > 0:
+        prior_dest = int(prev[i, 0])
+        pos = (int(units[i][0]), int(units[i][1]))
+        if COMMIT_DEST and prior_dest < 100 and pos != (prior_dest % 10, prior_dest // 10) and lg[prior_dest] > -1e8:
+            d = prior_dest
+        elif temperature > 0:
             p = np.exp((lg - lg.max()) / temperature); p /= p.sum(); d = int((rng or np.random).choice(100, p=p))
         else: d = int(lg.argmax())
         dest_idx[i] = d

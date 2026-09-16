@@ -90,35 +90,25 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 - 適応型の記録行動をテープ再生 (Majkel / MMPQ): 購買タイミングが崩れて崩壊。
 - 上位ルートの丸ごと再生 (E019 期) と部分移植 (E026/E045)。
 
-## RL 路線 (Transformer 方策、ユーザー方針: 諦めない) — 現在地 2026-09-15 夜
+## RL 路線 (Transformer 方策、ユーザー方針: 諦めない) — 現在地 2026-09-16 夕
 
-- 目的: 1 位 (適応型 Majkel 3226) に勝つ学習エージェント。Majkel 本人の PTCG 記事と公開コード (`tmp/pkmn-kaggle`、memory/transformer-ppo-reference) が参照。
-- コード: `rl/` (手順 `rl/README.md`)。BC = `train_bc2.py` + `model2.py` (Policy2: 目的タイル+作業+市場+価値)、推論 = `act2.py` (到着マスク・PLANT トリム・目的地再選択)、
-  自己対戦 PPO = `rl/sp/` (共有メモリ並列環境 `vec_env.py`、バッチ推論 `policy_batch.py`、学習器 `train.py`、記録相手プール `build_tapes*.py`)、
-  C++ 観測エンコーダ = kagsim `Game.encode(seat)` (`third_party/kaggriculture-cppsim/python/encode.hpp`、Python 版と完全一致、22 µs)。配備 = `agents/rl_agent/` (`export_agent.py`)。
-- 到達点: BC v3 (bc5_ep3、1,503 局) + 推論修正 → **対 v41 貪欲 32 戦 own 59.6k / margin −69k** (基準)。実戦上位は同条件で own 90〜100k。
-- **PPO はこの計算資源では成立しない (3 走で確定)**: PPO3 (単発 32 局/iter)、SP1 (自己対戦 2.4k 決定/s)、SP3 (Majkel レシピ移植: 決定単位の損失・解析 KL・critic 暖機・共有価値・記録相手プール) の全てが
-  1,000〜3,000 局で「自己対戦内では前進、外部相手には効かず、やがて発散」(SP3 it50: 10k/−140k)。Majkel は 5×10^7 局。再挑戦は 10^6 局/日級の計算資源 (GCP T4 24h ≈ $0.75/h) が前提。
-- **現在の本線 = BC のスケール**: bc6 (勝者側のみ 2,492 局) は Kaggle で完走も天井 ep1 31.6k/−118k で NO-GO と確定 (val 改善と実戦が逆相関。手元 bc6_ep1 43.2k、基準 bc5_ep3 59.6k)。
-  混合データ bc7 (`rl/extract_losers.py` → 敗者 1,014 + 勝者 2,492 = `tmp/rl/bc7data/` 3,506) のパイロット (1,200 局、ep0 40.7k/−98k) で欠陥は解消方向。
-  **bc7 全量は Kaggle GPU で実行中** (kernel `mmn0222/kaggriculture-bc7` v1、dataset `mmn0222/kaggriculture-rl-bc7`、`rl/kaggle7/`)。bs512・6 epoch・各 epoch 32 戦評価、約 7h。
-  結果取得: `.venv/bin/python -m kaggle kernels output mmn0222/kaggriculture-bc7 -p /tmp/kaggle_out_bc7 --force` → `eval.txt` (各 epoch の対 v41 32 戦)。
-  判定基準: いずれかの epoch で own 59.6k 超え、または単調改善の持続。超えれば配備 (`export_agent.py` → `agents/rl_agent/`)、頭打ちなら prev 対策へ。
-- 既知の構造問題 (ユーザー指摘・Majkel 比較): op 精度は教師強制 (正解目的地で条件付け、prev は正解履歴) の値で閉ループとは乖離する。Majkel は履歴特徴なし・1 決定 = 1 候補トークンの一段表現で回避し、閉ループ誤差は PPO に任せている。
-- 次の手 (優先順): (1) bc7k の `eval.txt` で判定 (基準 59.6k/−69k 超えか。超えれば配備、頭打ちなら (2) へ)、(2) prev の scheduled sampling と予測目的地での作業学習 (BC 側の閉ループ対策)、
-  (3) 一段の option 表現 (ユニット × 実行可能な (タイル, 作業) 候補から 1 つ選ぶ、prev 廃止) への設計変更、(4) 31〜60 位の直近リプレイ (`tmp/top0915b`) を足した bc8。
-- データ源: georgymamarin parquet (`tmp/data/replays_2026-09.parquet`、9 月前半 38k 局、最新版も同内容)、直近上位は API (`tests/fetch_top.py --top N --per M`) が唯一の源。
-  記録相手プール: `tmp/rl/tapes.pkl` (実戦 606 局)、`tmp/rl/tapes_top.pkl` (上位 30 + 2650 帯 1,551 本)。**別環境での復元**: コード+知識は git、重み・shard は Kaggle datasets (`kaggriculture-rl-bc6` に bc6data・bc5_ep3、`kaggriculture-rl-bc7` に bc7data) から落とす
-  (`kaggle datasets download <id> -p /tmp/kaggle_ds --force` → 解凍 → `tmp/rl/` へ)。bcl の再生成は `rl/extract_losers.py`、勝者は `rl/extract_winners.py` (手順 `rl/README.md`)。
-- WSL の制約 (2026-09-16 OOM 確定): **3,500 局級の全量ロードを旧ローダーで走らせない** (2 倍ピーク約 25GB で OOM-killer→WSL フリーズの連鎖)。`train_bc2.py` は省メモリ化済み (全量ピーク 13.4GB、RAM 15GB で可)。
-  パイロットは `--max-games 1200` (ピーク約 10GB)。torch はシステム側 (`/usr/bin/python3` + `PYTHONPATH=.venv/...`)、BC と PPO の同時実行は不可。
-- Mac の制約: BC と PPO を同時に走らせない (MPS メモリ)、fp16 は MPS で落ちる、Adam の 1 歩目は lr 1e-5 + ウォームアップでないと方策が 9 nat 動く。
+- 目的: 1 位 (Majkel1337 3187.7、学習方策) に勝つ学習エージェント。手順・結果表・再開方法は `rl/README.md`「Policy3」節、経緯は experiments.md の 09-16 行。
+- 現行本線 = **Policy3** (`model3.py`/`train_bc3.py`/`act3.py`/`play3.py`: joint (タイル, 作業) option、prev 廃止、option を到着まで保持)。
+- 到達点: **bc13_ep3 = bc9k_ep3 (bc7 混合 1,200 局) を 1 位 Majkel1337 の直近 200 局だけで 4 epoch 追加学習 → 対 v41 32 戦 own 88.5k / margin −27.8k** (旧基準 bc5_ep3 59.6k/−69k)。
+  重み・shard は Kaggle dataset `mmn0222/kaggriculture-rl-majkel0916`。
+- 今日の結論: (1) BC の天井は demo の平均像 (PASS 529/局) を写すこと。教師を 1 位に絞ると給水 1203・畑 57 株に伸びる。
+  (2) 推論側の補完層・班分け・復号規則、待機ラベルの重み、自己軌跡の混合はすべて効かないか悪化 (方策は塞がれた option の代わりに PASS を選ぶ)。
+  (3) 1 位の物差し: PASS 54 / WATER 1387 / 2 日放置 1.9% / 渇死 17。bc13 は 510 / 1203 / 4.0% / 62 DIG (生きた作物 24)。
+- PPO: 旧 3 走 (PPO3/SP1/SP3) は 1〜3k 局で発散。Policy3 用 `rl/sp/train3.py` (保持 option で決定数 1/4、渇死・逃走の密報酬) を用意、煙試験済み。初期値は bc13/14 の最良を使う。
+- 制約: Mac は BC と PPO を同時に走らせない (MPS メモリ)。Kaggle kernel は `rl/kaggleN/` (投入前に偽 `/kaggle/input` で乾式実行)。
+- コミュニティ (09-16 調査): 学習系で動いている公開物は Moriuchi 氏の純粋 RL (BC 4,600 局 + PPO 自己対戦、no-idle/sticky 規則) のみで、kagsim 対 v41 では 70.5k と bc9 と同帯。
+  zhincez 氏の失敗録: PPO 10 走ゼロ勝 (4 つの罠)、農場と市場の半分ずつを別方策から取ると 0 コイン (per-turn 模倣の一致率は得点と無相関)。
 
 ## 次のステップ
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
 2. ahmedberatozer / yhay81 の新版監視: `kaggle kernels list -s kaggriculture --sort-by dateRun`。新テープは手順 2 で表に足す (1 版 1 時間)。
-3. RL 路線: Kaggle の bc7 結果 (`mmn0222/kaggriculture-bc7` の `eval.txt`) で判定 → 超えれば配備、頭打ちなら prev の scheduled sampling → option 表現の順で BC の閉ループ対策 (上の「RL 路線」節)。
+3. RL 路線: bc14 (bc13 の継続) の 32 戦 → 最良を初期値に `rl/sp/train3.py` (PPO、渇死/逃走の密報酬) を it100 まで回し、25 iter ごとに 1 位の物差しで判定。並行して Majkel の追加リプレイ取得 (API は 200 局/提出、他提出も対象) と `export_agent.py` の Policy3 対応 (配備)。
 4. 上位帯との差はプランナー路線でしか埋まらないが壁は経路効率。再開するなら「テープの巡回路を抽出して route にする」から (`agents/legacy/live_e/planner.py`)。
 
 ## ナレッジの扱い

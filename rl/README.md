@@ -25,8 +25,40 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 `act2.py` (推論: ユニット逐次に目的タイルを選び claim、到着時に作業)、`rollout2.py` (ベクトル化自己対戦、logp を保存)、`np_policy2.py` (numpy 推論)。
 旧: `model.py` / `train_bc.py` / `bc_play.py` / `rollout.py` / `ppo.py` (v1: 方向を直接予測、崩壊した)。
 
-経緯と結果は `.opencode/knowledge/experiments.md` の RL-BC 行。
+## Policy3: 一段 option 方策 (現行本線) — 現在地 2026-09-16
 
+- `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
+  `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
+- `train_bc3.py`: 既存 shard の `dest`/`dop` を joint label に使う。`--init` で互換重みを引き継ぐ (Policy2 の encoder・市場・数量、Policy3 checkpoint の全部)。
+- `act3.py`: 現在地は実行可能手、遠隔地は地形上成立する将来作業を候補にし、選んだ option を到着まで保持。**推論に補完層・班分け・復号規則を足すと崩れる** (下の診断)。
+- `play3.py`: kagsim 対 v41 の閉ループ評価。`rollout3.py`: 自分の軌跡を shard 化 (DAgger 的、bc12 で不成立)。
+
+### 結果 (対 v41、Kaggle 16 戦 = seed 5000〜5007 両席 / local 8 戦 = 5000〜5003)
+
+| 名 | 学習 | 16 戦 own | 備考 |
+|---|---|---|---|
+| bc9k_ep3 | bc7 混合 1,200 局、bc5_ep3 から 4 epoch (`rl/kaggle9/`) | 58.0k | local 8 戦 68.2k。家畜は demo 並みに回復、Policy2 の DIG/BUILD 荒らしは消えた |
+| bc10k_ep3 | bc9 から継続 4 epoch lr 2e-4 (`rl/kaggle10/`) | 53.1k | 頭打ち |
+| bc11k_ep3 | 同 + PASS_IDLE_WEIGHT 0.1 (`rl/kaggle11/`) | 57.8k | 待機は demo 並みに減るが浮いた手は MOVE/DIG へ |
+| bc12k_ep3 | 同 + 自己軌跡 200 局混合 (`rl/kaggle12/`, `rollout3.py`) | 39.8k | 自分の欠点を強化して悪化 |
+| **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
+| bc14 | bc13_ep3 から継続 4 epoch lr 1e-4 | 実行中 | |
+
+### 診断で分かったこと (scratchpad の診断スクリプトは会話ログ、結論は experiments.md 09-16 行)
+
+- 得点差の正体は d9 以降の収入差で、畑は同数、**家畜と給水**が半分。open-loop 精度 (option 92%) は閉ループ得点と無相関。
+- 1 位 Majkel1337 の実戦 16 局 (`tmp/top1_0916/`): PASS 54/局 (demo 529)、WATER 1387、渇死 17、2 日放置 1.9%、班分けなし。demo の平均像 (PASS 529) を写すことが BC の天井だった。
+- 推論側の補完 (欠品なら倉庫へ・待機時に強制) と班分けマスクはいずれも悪化〜崩壊。方策は塞がれた option の代わりに PASS を選ぶ。
+- 物差し: 得点のほかに **PASS ≦ 100 / WATER ≧ 1,300 / 2 日放置 ≦ 2% / 家畜逃走 ≈ 0** (1 位の値)。
+
+### データと再開 (別 PC)
+
+- Majkel 200 局: `tests/fetch_top.py --lb <LB csv> --top 1 --per 200 --out tmp/top1_0916` (LB csv は `kaggle competitions leaderboard kaggriculture --download`) → `rl/extract.py --glob 'tmp/top1_0916/*/episode-*.json' --team Majkel1337 --out tmp/rl/majkel_0916`。
+  取得済みのものは Kaggle dataset **`mmn0222/kaggriculture-rl-majkel0916`** (data/majkel_0916 200 shard 35MB + ckpt/bc9k_ep3.pt, bc13_ep3.pt)。
+- 学習: `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_0916/*.npz' --out tmp/rl/bc13.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4` (Mac MPS 4 分/epoch、RTX3060Ti なら更に速い)。
+- 評価: `.venv/bin/python rl/play3.py tmp/rl/bc13_ep3.pt --games 32`。
+- Kaggle で回す場合: コードは dataset `mmn0222/kaggriculture-rl-code` (rl/ を平置き、`kaggle datasets version -p tmp/kaggle_code -r zip` で更新)、bc7 データは `mmn0222/kaggriculture-rl-bc7`、bc9 の重みは kernel 出力を `kernel_sources` で参照 (`rl/kaggle10〜12/kernel-metadata.json`)。
+  投入前に `run_bcN.py` を偽の `/kaggle/input` で乾式実行する (bc12 は経路探索と変数定義で 3 回落ちた)。
 
 ## 自己対戦 PPO (`rl/sp/`、2026-09-15) — 基盤は完成、学習は規模不足で凍結
 
@@ -34,6 +66,10 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
   `train.py` PPO (決定単位の比率、凍結 teacher への解析 KL、critic 暖機、昇格、`--resume`) / `bench.py` スループット / `build_tapes.py`・`build_tapes_pq.py` 記録相手プール。
 - 実行例: `caffeinate -i .venv/bin/python rl/sp/train.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/spN.pt --workers 10 --games 48 --T 96 --lr 1e-5 --warmup 200 --critic-warmup 60 --temp 0.5 --kl 0.005 --tapes tmp/rl/tapes_top.pkl --tape-frac 0.25`
 - Mac (M3 Pro, MPS): 1,178 game-steps/s (2,356 決定/s)。ボトルネックは推論。結果: 3 走とも 1〜3k 局で発散 (experiments.md SP1/SP3)。
+- **Policy3 版 (2026-09-16、煙試験済み・本走は未着手)**: `policy_batch3.py` (joint option を到着まで保持、到着時の正確な合法性をマスク、上位 64 候補で比率と KL) + `train3.py`
+  (密報酬に **渇死 1 株 −0.05・逃走 1 頭 −0.2** を追加、他は train.py 同様)。log-prob 再計算誤差 0、決定は 1 手 2.8〜3.9/席。
+  実行例: `caffeinate -i .venv/bin/python rl/sp/train3.py --init tmp/rl/bc13_ep3.pt --out tmp/rl/sp4.pt --workers 8 --games 32 --T 96 --lr 1e-5 --kl 0.02 --temp 0.7 --dense 0.2 --death 0.05 --escape 0.2 --tape-frac 0.25 --critic-warmup 60`
+  判定は 25 iter ごとの `_itK.pt` を `play3.py --games 32` と上の物差しで。前 3 走は it39〜50 で崩れた。
 
 ## C++ 観測エンコーダ
 
