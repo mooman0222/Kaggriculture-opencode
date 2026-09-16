@@ -94,12 +94,12 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 
 - 目的: 1 位 (Majkel1337 3187.7、学習方策) に勝つ学習エージェント。手順・結果表・再開方法は `rl/README.md`「Policy3」節、経緯は experiments.md の 09-16 行。
 - 現行本線 = **Policy3** (`model3.py`/`train_bc3.py`/`act3.py`/`play3.py`: joint (タイル, 作業) option、prev 廃止、option を到着まで保持)。
-- 到達点: **bc13_ep3 = bc9k_ep3 (bc7 混合 1,200 局) を 1 位 Majkel1337 の直近 200 局だけで 4 epoch 追加学習 → 対 v41 32 戦 own 88.5k / margin −27.8k** (旧基準 bc5_ep3 59.6k/−69k)。
-  重み・shard は Kaggle dataset `mmn0222/kaggriculture-rl-majkel0916`。
+- 到達点: **bc15_ep3 = bc9k_ep3 (bc7 混合 1,200 局) を 1 位 Majkel1337 の実戦 713 局 (2 提出の全量) で 4 epoch 追加学習 → 対 v41 32 戦 own 95.4k / margin −17.1k / 2 勝**
+  (bc13 200 局 88.5k/−27.8k、旧基準 bc5_ep3 59.6k/−69k)。**現行提出 E065/E062 には 16 戦 −18k (1 勝)**: 提出は v41 に +2.7k なので差は約 20k。重み・shard は dataset `mmn0222/kaggriculture-rl-majkel0916` v3。
 - 今日の結論: (1) BC の天井は demo の平均像 (PASS 529/局) を写すこと。教師を 1 位に絞ると給水 1203・畑 57 株に伸びる。
   (2) 推論側の補完層・班分け・復号規則、待機ラベルの重み、自己軌跡の混合はすべて効かないか悪化 (方策は塞がれた option の代わりに PASS を選ぶ)。
   (3) 1 位の物差し: PASS 54 / WATER 1387 / 2 日放置 1.9% / 渇死 17。bc13 は 510 / 1203 / 4.0% / 62 DIG (生きた作物 24)。
-- bc14 (bc13 継続 4 epoch) は 32 戦 87.7k / −37.3k で飽和 → 伸ばすのはデータ量。
+- bc14 (bc13 継続 4 epoch、200 局) は飽和、bc15 (713 局) で +7k → データ量で伸びる。bc16 (bc15 継続 4 epoch) は Kaggle `kaggriculture-bc16-policy3` で実行中。
 - **方針 (ユーザー合意)**: 本命 = Majkel 実戦の BC スケール (別提出のエピソードで 400〜600 局 → bc15)。PPO は検証扱い (見込み 3〜4 割): Policy3 用 `rl/sp/train3.py` を Kaggle
   `mmn0222/kaggriculture-sp4-policy3-ppo` (`rl/kaggle13/`) で 2.5 時間の塊、停止基準 = it25〜50 で渇死・逃走が減らない、または 32 戦が bc13_ep3 未満。推論側の細工は再挑戦しない。
 - 制約: Mac は BC と PPO を同時に走らせない (MPS メモリ)。Kaggle kernel は `rl/kaggleN/` (投入前に偽 `/kaggle/input` で乾式実行)。
@@ -110,7 +110,7 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
 2. ahmedberatozer / yhay81 の新版監視: `kaggle kernels list -s kaggriculture --sort-by dateRun`。新テープは手順 2 で表に足す (1 版 1 時間)。
-3. RL 路線 (手順は rl/README.md「方針」節): (a) Majkel の別提出エピソードを取得して bc15 (本命)、(b) Kaggle の sp4 `eval.txt` を停止基準で判定、(c) bc13 級が安定したら `export_agent.py` を Policy3 対応して配備。
+3. RL 路線 (手順は rl/README.md「方針」「データと再開」節): (a) bc16 の `eval.txt` で epoch 追加の効果を判定、(b) Majkel のエピソードを日次で足して再学習、(c) 提出 (E065) を超えたら `export_agent.py` を Policy3 対応して配備。PPO は再凍結。
 4. 上位帯との差はプランナー路線でしか埋まらないが壁は経路効率。再開するなら「テープの巡回路を抽出して route にする」から (`agents/legacy/live_e/planner.py`)。
 
 ## ナレッジの扱い
