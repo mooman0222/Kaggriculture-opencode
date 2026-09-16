@@ -60,23 +60,20 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 2. **提出エージェントとの距離**: bc15_ep3 は E065 / E062 (現行提出、v41 系テープ + 反応層) に 16 戦で **−18.4k / −18.1k** (1 勝)。提出は v41 に +2.7k、bc15 は −17k で差は約 20k。置き換え候補になるにはこの差を埋める。
 3. **PPO は再凍結** (sp4: it52 で停止基準到達、渇死 −22% だが逃走 +60%、対テープ margin −11k → −39k、前 3 走と同形)。再挑戦は規模 (10^6 局/日級) が前提。
 4. 推論側の細工 (補完層・班分け・復号規則・待機ラベル・自己軌跡) は全部効かなかったので再挑戦しない。
-5. 配備には `export_agent.py` の Policy3 対応 (numpy 推論) が要る。提出を超えたら着手。
+5. 配備は対応済み (09-17、「次にすること」4. を参照)。提出実績 ref 56283017 (trial)。
 
 **bc16 (完了)**: bc15_ep3 の継続は ep0 が同格 (94.4k / −14.3k)、以降は崩壊 (ep3 64.6k)。epoch は合計 4〜5 が上限で、**残る本命の手はデータ量 (Majkel の日次エピソード追加)**。次に効く見込みの手: 市場層の売り時刻 (夕方一括、規則 C で +3〜5k、experiments.md「bc15 vs E065 の負け方」)、d9〜15 のメロン収穫の遅れ (残り 13k) の調査。
 
-### 次にすること (2026-09-16 深夜、優先順)
+### 次にすること (2026-09-16 深夜、優先順) — 09-17 unagi 作業で 1・2・4 は済み
 
 主軸は **Majkel との差を埋める**こと。E065 との 18k 差 (experiments.md「bc15 vs E065 の負け方」) は別問題ではなく、Majkel の行動 (d10 にメロン 12 個を収穫して即売) を写し損ねた一断面。E065 個別のルール積み増しはしない。
 
-1. **売り規則 C を市場層に載せる** (1 時間、+3〜5k、32 戦で確認済み): hour ≥ 20 に小麦・肥料以外の倉庫在庫を全量 SELL、モデルの売り注文は小麦・肥料分だけ残す、注文は 10 件以内。
-   実装先は `act3.py` の市場デコード後 (scratchpad の `ab_sellrule.py` 規則 C が仕様)。農場の推論細工ではなく市場層のルールなので方針の対象外。A/B は `play3.py --games 32` (対 v41) と `--vs agents/e065/main.py --games 16`。
-2. **メロン収穫の遅れの診断** (1 時間): bc15 は d10 にメロンを 4 個/日しか収穫せず (E065 は 12 個)、倉庫に 48 個溜める。Majkel の label (`tmp/rl/majkel_all`, dop=HARVEST at kind PLANT crop MELON) で収穫日の分布を出し、bc15 の閉ループと比べて原因を切り分ける:
-   ① 保持 option が給水に固定されて切り替わらない → 保持の解除条件の**バグ修正** (到着前でも同タイルで優先度の高い作業が出たら再決定、等)、② HARVEST の到着合法性 (`FIRST_YIELD_DAY`、`yield_units`) が demo とずれる → `features.legal_ops_at` / `sp/legal_all.py` の修正、③ モデルが選ばない → データ側 (3.) へ。
-   ①②なら残り 13k のかなりの部分が戻る見込み。
+1. ~~売り規則 C を市場層に載せる~~ **済 (+3k)** : `act_common.py` の市場デコード後 (`apply_sell_rules`、夕方 h≥20 投売り + 買保護 + 肥料投売り既定)。対 v41 32 戦 97.2k/−14.1k、対 E065 16 戦 −13.1k。変種 (日中投売り・牛→羊・メロン保持) は全棄却。
+2. ~~メロン収穫の遅れの診断~~ **済 (バグなし)** : 収穫齢は平均 10.22 日 (滞留 0.22 日のみ)、真因は植え staggering (d3 植え 2.2 個) + 売り時。保持 option・合法判定は正常。
 3. **データ量を増やす** (学習側で唯一実績のある手、+500 局で +7k): Majkel のエピソードは日 50 局前後増える。`rl/fetch_episodes.py --sub 56156662 / 56216119 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` で追加し、
-   bc9k_ep3 から 4 epoch lr 2e-4 (bc15 レシピ) で bc17。新しい提出が出たら (Majkel が方策を更新したら) その id も足す。合計 4〜5 epoch を超えない (bc16 で崩壊)。
-4. **配備準備**: `export_agent.py` を Policy3 対応 (numpy 推論、`act3.py` 相当 + 規則 C) にし、bc15_ep3 / bc16k_ep0 を `agents/rl_agent/` に出して `tests/kag_eval.py` で提出物として検証。E065 を 16 戦で上回ったら提出候補 (提出はユーザー確認)。
-5. やらないこと: epoch 追加、PPO (再凍結、規模が前提)、農場側の推論強制・班分け・待機ラベル・自己軌跡 (全部不発)。
+   bc9k_ep3 から 4 epoch lr 2e-4 (bc15 レシピ) で bc19 (bc17 = 732 局は横ばいで不採用、次は 900〜1000 局)。新しい提出が出たら (Majkel が方策を更新したら) その id も足す。合計 4〜5 epoch を超えない (bc16 で崩壊)。
+4. ~~配備準備~~ **済 (検証済み)** : `export_agent.py` は Policy3 対応済み (`np_policy3.py` + `np_act3.py` + `act_common.py` 同梱)。torch vs numpy per-step 4314 手 0 不一致、kag_eval 8 戦は全戦コイン一致、self-match DONE/DONE、初手 142ms。提出実績: ref 56283017 (trial)。
+5. やらないこと: epoch 追加、PPO (再凍結、規模が前提)、農場側の推論強制・班分け・待機ラベル・自己軌跡・温度サンプリング・容量 d256 (全部不発、experiments.md 09-16 夜行)。
 
 ### データと再開 (別 PC)
 
@@ -87,6 +84,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
   .venv/bin/python rl/play3.py tmp/rl/bc15_ep3.pt --games 32     # 95.4k / −17.1k / 2 勝 が再現すれば環境 OK
   ```
 - **データを増やす** (Majkel のエピソードは 1 日 50 局前後増える): 提出 id は `kagglesdk` の `list_team_public_submissions(team_id=16718819)` (tests/fetch_top.py 参照)。09-16 時点は 56156662 と 56216119 の 2 本。
+  09-16 深夜時点で `tmp/rl/majkel_all` 732 局 (v3 の 713 +19、新規は平均 120.9k の高品質)。bc17 (732 局、bc15 レシピ) は 92.9k/−14.7k で横ばい・不採用。次は **900〜1000 局超で bc19** (同レシピ)。200→713 局で +7k の実績、+19 局では動かない。
   `.venv/bin/python rl/fetch_episodes.py --sub 56156662 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` (既存 episode id は飛ばす)。`tests/fetch_top.py` は 1 提出 200 局までなので使わない。
   新しい提出が出たら (Majkel の方策が変わったら) その id も足す。
 - **学習** (bc15 レシピ): `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_all/*.npz' --out tmp/rl/bcN.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4` (Mac MPS 13.5 分/epoch、Kaggle T4 約 7 分)。継続は `--init tmp/rl/bc15_ep3.pt --lr 1e-4`。

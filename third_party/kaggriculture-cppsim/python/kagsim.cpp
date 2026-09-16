@@ -254,6 +254,11 @@ struct Game {
         for (int i = 0; i < N_ITEMS; ++i) { disc += f.discarded[i]; sold += f.sold_units[i]; }
         t["shed_discarded_units"] = disc;
         t["sold_units"] = sold;
+        static const char* names[N_ITEMS] = {"WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON", "EGG", "MILK", "WOOL", "FERTILIZER", "GOOSE", "COW", "SHEEP"};
+        py::dict rev_items, sold_items;
+        for (int i = 0; i < N_ITEMS; ++i) { rev_items[names[i]] = f.sell_rev_items[i]; sold_items[names[i]] = f.sold_units[i]; }
+        t["sell_revenue_items"] = rev_items;
+        t["sold_units_items"] = sold_items;
         return t;
     }
     explicit Game(uint64_t seed, int steps = 720,

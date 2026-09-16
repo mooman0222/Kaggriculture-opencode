@@ -16,14 +16,20 @@ def _ln(x, w, b, eps=1e-5):
     m = x.mean(-1, keepdims=True); v = ((x - m) ** 2).mean(-1, keepdims=True); return (x - m) / np.sqrt(v + eps) * w + b
 
 
+try:
+    from scipy.special import erf as _erf
+    _HAS_ERF = True
+except Exception:
+    _erf = None
+    _HAS_ERF = False
+
+
 def _gelu(x):
     from math import sqrt
-    # torch default gelu (erf); use tanh-free erf approximation via numpy's special function fallback
-    try:
-        from scipy.special import erf
-        return 0.5 * x * (1 + erf(x / sqrt(2)))
-    except Exception:
-        return 0.5 * x * (1 + np.tanh(0.7978845608 * (x + 0.044715 * x ** 3)))
+    # torch default gelu (erf); tanh approximation fallback when scipy is absent
+    if _HAS_ERF:
+        return 0.5 * x * (1 + _erf(x / sqrt(2)))
+    return 0.5 * x * (1 + np.tanh(0.7978845608 * (x + 0.044715 * x ** 3)))
 
 
 class NpPolicy:

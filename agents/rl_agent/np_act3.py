@@ -1,8 +1,11 @@
-"""Inference for Policy3 joint destination-operation options."""
+"""Numpy-only Policy3 action (deployment). Bit-exact mirror of act3.act_policy3
+with temperature=0, using NpPolicy3 + act_common + actions.decode_action.
+
+No torch import: safe inside the Kaggle agent bundle.
+"""
 from __future__ import annotations
 
 import numpy as np
-import torch
 
 from act_common import (
     apply_cow_cap,
@@ -12,22 +15,11 @@ from act_common import (
     trim_plants,
 )
 from actions import decode_action
-from features import (
-    MAX_UNITS,
-    MKT_BUCKETS,
-    N_OPS,
-    OP_INDEX,
-    OPS,
-    PRODUCTS,
-    QTY_BUCKETS,
-    SHED_TILES,
-    encode,
-    unbucket,
-)
+from features import MAX_UNITS, N_OPS, OP_INDEX, OPS, PRODUCTS, QTY_BUCKETS, SHED_TILES, encode, unbucket
 
 
-def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None, sell_rule_c=False,
-                dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0):
+def act_np_policy3(pol, obs, seat, state=None, sell_rule_c=True, dump_fert=True,
+                   intra_thresh=0, cow_cap=0, melon_hold_until=0):
     features = encode(obs, seat)
     farm = obs["farms"][seat]
     units = [farm["farmer"], *farm["hands"]][:MAX_UNITS]
@@ -36,10 +28,9 @@ def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None,
     if state is not None and "options" in state:
         prior_options[:] = state["options"]
 
-    with torch.no_grad():
-        hidden = model.encode(*(torch.from_numpy(features[key]).unsqueeze(0).to(device) for key in ("tiles", "units", "items", "glob")))
-        option_logits = model.option_logits(hidden)[0].cpu().numpy()
-        market = model.market(hidden)
+    hidden = pol.encode(features)
+    option_logits = pol.option_logits(hidden)
+    market = pol.market(hidden)
 
     claimed = set()
     selected_options = np.full(MAX_UNITS, -1, dtype=np.int32)
@@ -57,13 +48,7 @@ def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None,
         if option < 0 or not legal[prior_destination, prior_operation]:
             logits = option_logits[unit_index].copy()
             logits[~legal] = -1e9
-            flat = logits.reshape(-1)
-            if temperature > 0:
-                probabilities = np.exp((flat - flat.max()) / temperature)
-                probabilities /= probabilities.sum()
-                option = int((rng or np.random).choice(len(flat), p=probabilities))
-            else:
-                option = int(flat.argmax())
+            option = int(logits.reshape(-1).argmax())
 
         destination, operation = divmod(option, N_OPS)
         x, y = destination % 10, destination // 10
@@ -74,8 +59,7 @@ def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None,
         if position != (x, y):
             selected_options[unit_index] = option
 
-    with torch.no_grad():
-        quantity_logits = model.qty_logits(hidden, torch.from_numpy(destinations).unsqueeze(0).to(device))[0].cpu().numpy()
+    quantity_logits = pol.qty_logits(hidden, destinations)
 
     unit_actions = []
     for unit_index, unit in enumerate(units):
@@ -101,12 +85,12 @@ def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None,
     for unit_index in trim_plants(unit_actions, obs["private"]["seeds"]):
         selected_options[unit_index] = -1
     market_targets = np.concatenate([
-        market["sell"][0].argmax(-1).cpu().numpy(),
-        market["buyp"][0].argmax(-1).cpu().numpy(),
-        market["seed"][0].argmax(-1).cpu().numpy(),
-        market["anim"][0].argmax(-1).cpu().numpy(),
-        [int(market["hire"][0].argmax())],
-        [int(market["land"][0].argmax())],
+        market["sell"].argmax(-1),
+        market["buyp"].argmax(-1),
+        market["seed"].argmax(-1),
+        market["anim"].argmax(-1),
+        [int(market["hire"].argmax())],
+        [int(market["land"].argmax())],
     ])
     action = decode_action(np.zeros(MAX_UNITS, dtype=int), np.zeros(MAX_UNITS, dtype=int), market_targets, obs, seat)
     if sell_rule_c:

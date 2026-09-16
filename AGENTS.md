@@ -110,7 +110,10 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 
 1. E058/E060 の収束確認 (1 日後): 定型手順 1。特に v41 開幕 (sig24 f4c178e5c1) の比率と E060 の 0913 世界の実戦効果。
 2. ahmedberatozer / yhay81 の新版監視: `kaggle kernels list -s kaggriculture --sort-by dateRun`。新テープは手順 2 で表に足す (1 版 1 時間)。
-3. RL 路線 (手順と優先順は rl/README.md「次にすること」節): (1) 売り規則 C を市場層へ (+3〜5k)、(2) メロン収穫の遅れの診断 (保持 option / 合法判定のバグか)、(3) Majkel エピソードの日次追加 → bc17、(4) `export_agent.py` の Policy3 対応と配備検証。epoch 追加は打ち止め (bc16 崩壊)、PPO は再凍結。
+3. RL 路線 (09-16 夜: bc15+規則C 97.2k/−14.1k、対 E065 −13.1k。詳細は rl/README.md「次にすること」節と experiments.md 09-16 夜行):
+   済: (1) 売り規則 C + 肥料投売りを市場層へ (act_common.py、+3k)、(2) メロン遅れは植え staggering + 売り時と特定 (バグなし)、(4) export Policy3 対応と配備検証 (coin-exact)。
+   打ち止め: 日中投売り・牛→羊・メロン保持・温度・容量 d256・bc17 (+19 局)。残る本命は Majkel の日次 drip (900〜1000 局で bc19)。PPO 再凍結。
+   核心病理: idle 500 (teacher 54)・無給水 25%・頭数あたり収集半分 = idle 税 15k 級。データ量では直らず (200→713 で不変)。推論・農場側の細工は全滅済みで再挑戦しない。
 4. 上位帯との差はプランナー路線でしか埋まらないが壁は経路効率。再開するなら「テープの巡回路を抽出して route にする」から (`agents/legacy/live_e/planner.py`)。
 
 ## ナレッジの扱い

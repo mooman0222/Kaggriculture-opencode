@@ -2,28 +2,12 @@
 from __future__ import annotations
 import numpy as np, torch
 import os
-from features import encode, legal_ops_at, OPS, OP_INDEX, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS, CROPS
+from features import encode, legal_ops_at, OPS, OP_INDEX, MAX_UNITS, SHED_TILES, QTY_BUCKETS, unbucket, PRODUCTS
 RESELECT = os.environ.get("RL_RESELECT", "1") != "0"; RESELECT_TRIES = 4
 COMMIT_DEST = os.environ.get("RL_COMMIT_DEST", "1") != "0"
 
 from actions import decode_action
-
-
-def step_toward(pos, tgt):
-    x, y = pos
-    if tgt[0] != x: return ["EAST" if tgt[0] > x else "WEST"]
-    if tgt[1] != y: return ["SOUTH" if tgt[1] > y else "NORTH"]
-    return None
-
-
-def trim_plants(unit_actions, seeds):
-    """Engine drops EVERY PLANT of a crop when requests exceed seeds held: keep the first seeds[c] requests (farmer first), PASS the rest. Returns trimmed unit indices."""
-    left = {c: int(seeds.get(c, 0) or 0) for c in CROPS}; out = []
-    for i, ua in enumerate(unit_actions):
-        if ua and ua[0] == "PLANT":
-            if left[ua[1]] > 0: left[ua[1]] -= 1
-            else: unit_actions[i] = ["PASS"]; out.append(i)
-    return out
+from act_common import step_toward, trim_plants  # noqa: F401 (re-export for rollout2/sp)
 
 
 def act_policy2(model, obs, seat, dev, temperature=0.0, rng=None, state=None):

@@ -17,18 +17,27 @@ from model3 import Policy3
 
 
 class BCAgent3:
-    def __init__(self, path, d=128, layers=3, device="cpu", temperature=0.0):
+    def __init__(self, path, d=128, layers=3, device="cpu", temperature=0.0, sell_rule_c=False,
+                 dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0):
         self.device = torch.device(device)
         self.model = Policy3(d=d, layers=layers).to(self.device)
         self.model.load_state_dict(torch.load(path, map_location=self.device))
         self.model.eval()
         self.temperature = temperature
+        self.sell_rule_c = sell_rule_c
+        self.dump_fert = dump_fert
+        self.intra_thresh = intra_thresh
+        self.cow_cap = cow_cap
+        self.melon_hold_until = melon_hold_until
         self.state = {}
 
     def act(self, obs, seat):
         if int(obs["step"]) == 0:
             self.state = {}
-        return act_policy3(self.model, obs, seat, self.device, self.temperature, state=self.state)[0]
+        return act_policy3(self.model, obs, seat, self.device, self.temperature, state=self.state,
+                           sell_rule_c=self.sell_rule_c, dump_fert=self.dump_fert,
+                           intra_thresh=self.intra_thresh, cow_cap=self.cow_cap,
+                           melon_hold_until=self.melon_hold_until)[0]
 
 
 def load_agent(path):
@@ -49,9 +58,18 @@ def main():
     parser.add_argument("--d", type=int, default=128)
     parser.add_argument("--layers", type=int, default=3)
     parser.add_argument("--temp", type=float, default=0.0)
+    parser.add_argument("--sell-rule-c", action="store_true")
+    parser.add_argument("--dump-fert", action="store_true", default=True)
+    parser.add_argument("--no-dump-fert", action="store_true")
+    parser.add_argument("--intra-thresh", type=int, default=0)
+    parser.add_argument("--cow-cap", type=int, default=0)
+    parser.add_argument("--melon-hold-until", type=int, default=0)
     args = parser.parse_args()
 
-    agent = BCAgent3(args.checkpoint, args.d, args.layers, temperature=args.temp)
+    agent = BCAgent3(args.checkpoint, args.d, args.layers, temperature=args.temp, sell_rule_c=args.sell_rule_c,
+                     dump_fert=args.dump_fert and not args.no_dump_fert,
+                     intra_thresh=args.intra_thresh, cow_cap=args.cow_cap,
+                     melon_hold_until=args.melon_hold_until)
     opponent = load_agent(args.vs)
     results = []
     started = time.time()

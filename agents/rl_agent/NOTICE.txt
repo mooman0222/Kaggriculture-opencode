@@ -1,0 +1,4 @@
+Self-authored Transformer behavioral-cloning agent (MMN0222, 2026-09-17).
+Policy3 joint (destination, operation) option policy trained on public competition replays;
+numpy inference (no torch). Market layer: evening bulk-sell rule C + fertilizer dump.
+No third-party notebook code included.

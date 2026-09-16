@@ -40,4 +40,4 @@ class NpPolicy2:
     def market(self, H):
         g, hi = H["g"], H["items"]
         return {"sell": self.lin(hi, "sell_head"), "buyp": self.lin(hi[[0, 8]], "buyp_head"), "seed": self.lin(hi[:5], "seed_head"), "anim": self.lin(g, "anim_head").reshape(3, 5),
-                "hire": self.lin(g, "hire_head"), "land": self.lin(g, "land_head"), "value": self.lin(g, "value_head")[0]}
+                "hire": self.lin(g, "hire_head"), "land": self.lin(g, "land_head")}  # value head is training-only

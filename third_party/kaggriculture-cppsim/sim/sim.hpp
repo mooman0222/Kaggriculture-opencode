@@ -214,6 +214,7 @@ struct Farm {
     int32_t produced[N_ITEMS] = {0};
     int32_t sold_units[N_ITEMS] = {0};
     double  sell_revenue = 0;   // coins actually received from SELLs
+    double  sell_rev_items[N_ITEMS] = {0};  // per-item revenue (instrumentation only)
     double  total_spend = 0;    // coins actually paid out
     // Settle telemetry (instrumentation only, same contract as `discarded`):
     // counters of what the settle does in SILENCE, so an audit reads engine
@@ -627,6 +628,7 @@ private:
                 f.money += price;
                 f.sold_units[item] += 1;
                 f.sell_revenue += price;
+                f.sell_rev_items[item] += price;
                 if (price > 1) st.market.inventory[item] += 1;   // $1 sales don't add supply
                 return true;
             case M_BUY_PRODUCT:
