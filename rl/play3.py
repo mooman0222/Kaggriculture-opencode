@@ -13,12 +13,13 @@ import numpy as np
 import torch
 
 from act3 import act_policy3
+from act_common import MKT_POS_W
 from model3 import Policy3
 
 
 class BCAgent3:
     def __init__(self, path, d=128, layers=3, device="cpu", temperature=0.0, sell_rule_c=False,
-                 dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0):
+                 dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0, mkt_debias=()):
         self.device = torch.device(device)
         self.model = Policy3(d=d, layers=layers).to(self.device)
         self.model.load_state_dict(torch.load(path, map_location=self.device))
@@ -29,6 +30,7 @@ class BCAgent3:
         self.intra_thresh = intra_thresh
         self.cow_cap = cow_cap
         self.melon_hold_until = melon_hold_until
+        self.mkt_debias = mkt_debias
         self.state = {}
 
     def act(self, obs, seat):
@@ -37,7 +39,7 @@ class BCAgent3:
         return act_policy3(self.model, obs, seat, self.device, self.temperature, state=self.state,
                            sell_rule_c=self.sell_rule_c, dump_fert=self.dump_fert,
                            intra_thresh=self.intra_thresh, cow_cap=self.cow_cap,
-                           melon_hold_until=self.melon_hold_until)[0]
+                           melon_hold_until=self.melon_hold_until, mkt_debias=self.mkt_debias)[0]
 
 
 def load_agent(path):
@@ -64,12 +66,14 @@ def main():
     parser.add_argument("--intra-thresh", type=int, default=0)
     parser.add_argument("--cow-cap", type=int, default=0)
     parser.add_argument("--melon-hold-until", type=int, default=0)
+    parser.add_argument("--mkt-debias", default="", help="学習時の pos_w を戻す市場ヘッド (カンマ区切り、all で全部): sell,buyp,seed,anim,hire,land")
     args = parser.parse_args()
 
     agent = BCAgent3(args.checkpoint, args.d, args.layers, temperature=args.temp, sell_rule_c=args.sell_rule_c,
                      dump_fert=args.dump_fert and not args.no_dump_fert,
                      intra_thresh=args.intra_thresh, cow_cap=args.cow_cap,
-                     melon_hold_until=args.melon_hold_until)
+                     melon_hold_until=args.melon_hold_until,
+                     mkt_debias=tuple(MKT_POS_W) if args.mkt_debias == "all" else tuple(x for x in args.mkt_debias.split(",") if x))
     opponent = load_agent(args.vs)
     results = []
     started = time.time()

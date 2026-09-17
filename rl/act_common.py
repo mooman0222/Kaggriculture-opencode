@@ -19,6 +19,19 @@ from features import (
 )
 
 
+# 学習時 _mkt_ce が非ゼロクラスを pos_w 倍に重み付けした分 (model3.bc_loss3 の各ヘッド)
+MKT_POS_W = {"sell": 6.0, "buyp": 6.0, "seed": 6.0, "anim": 20.0, "hire": 8.0, "land": 30.0}
+
+
+def mkt_argmax(logits, head, debias=()):
+    """市場ヘッドの argmax。head が debias に入っていれば非ゼロクラスから log(pos_w) を引いて事前確率を戻す。"""
+    if head not in debias:
+        return logits.argmax(-1)
+    adjusted = np.asarray(logits, dtype=np.float64).copy()
+    adjusted[..., 1:] -= np.log(MKT_POS_W[head])
+    return adjusted.argmax(-1)
+
+
 def step_toward(pos, tgt):
     x, y = pos
     if tgt[0] != x:

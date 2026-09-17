@@ -6,6 +6,7 @@ import torch
 
 from act_common import (
     apply_cow_cap,
+    mkt_argmax,
     apply_sell_rules,
     legal_option_mask,
     step_toward,
@@ -27,7 +28,7 @@ from features import (
 
 
 def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None, sell_rule_c=False,
-                dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0):
+                dump_fert=True, intra_thresh=0, cow_cap=0, melon_hold_until=0, mkt_debias=()):
     features = encode(obs, seat)
     farm = obs["farms"][seat]
     units = [farm["farmer"], *farm["hands"]][:MAX_UNITS]
@@ -101,12 +102,12 @@ def act_policy3(model, obs, seat, device, temperature=0.0, rng=None, state=None,
     for unit_index in trim_plants(unit_actions, obs["private"]["seeds"]):
         selected_options[unit_index] = -1
     market_targets = np.concatenate([
-        market["sell"][0].argmax(-1).cpu().numpy(),
-        market["buyp"][0].argmax(-1).cpu().numpy(),
-        market["seed"][0].argmax(-1).cpu().numpy(),
-        market["anim"][0].argmax(-1).cpu().numpy(),
-        [int(market["hire"][0].argmax())],
-        [int(market["land"][0].argmax())],
+        mkt_argmax(market["sell"][0].cpu().numpy(), "sell", mkt_debias),
+        mkt_argmax(market["buyp"][0].cpu().numpy(), "buyp", mkt_debias),
+        mkt_argmax(market["seed"][0].cpu().numpy(), "seed", mkt_debias),
+        mkt_argmax(market["anim"][0].cpu().numpy(), "anim", mkt_debias),
+        [int(mkt_argmax(market["hire"][0].cpu().numpy(), "hire", mkt_debias))],
+        [int(mkt_argmax(market["land"][0].cpu().numpy(), "land", mkt_debias))],
     ])
     action = decode_action(np.zeros(MAX_UNITS, dtype=int), np.zeros(MAX_UNITS, dtype=int), market_targets, obs, seat)
     if sell_rule_c:
