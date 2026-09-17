@@ -4,7 +4,27 @@
 Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」がスロットにあることが全て** (有効なのは最新 2 提出、選べない)。
 時系列の経緯は `.opencode/knowledge/history.md`、実験の一次記録は `.opencode/knowledge/experiments.md`。
 
-## 現在地 (2026-09-15)
+## 明日やること (2026-09-17 夜に中断)
+
+1. **夜間 Kaggle の結果を取る**: `kaggle kernels output mmn0222/kaggriculture-bc22-policy3 -p tmp/kaggle_out_bc22 --force` →
+   `eval.txt` に bc22 (Majkel 854 局・初期値なし 4 epoch) の各 epoch と bc15/bc18/bc20_ep3 の**対 v41 64 戦**。
+   ねらいは (a) 09-17 の結論がすべて 32 戦 SE ±3.1k に埋もれている順位を 64 戦で確定させる、(b) 別ハードで bc20 (92.1k) が再現するか。
+2. **ハイブリッド実装**: v46 シャシー (`agents/e066/`) の上に Transformer の売りヘッドを**追加のみ**で載せる。
+   制約は `.opencode/knowledge/refs/chassis_market_anatomy.md` を**必ず先に読む** (全面差し替えは在庫の二重売りを起こす、スロット 0 は契約、終局は 9 本 SELL 固定)。
+   形は `agents/e066/main.py` の `_sell` と同じ兄弟層。重みは numpy 版 (`rl/export_agent.py` → `np_policy3.py`) で載せる。torch は使えない。
+3. **E066 の実戦結果を見る** (09-17 提出、ref は `kaggle competitions submissions kaggriculture`)。
+4. 保留: 市場バケツの丸め修正 (`features.bucket()` の同点が下振れ。shard 作り直し = Majkel 854 局の再取得 2.4 時間が前提、`rl/README.md`「ラベル監査」節)。
+
+## 現在地 (2026-09-17)
+
+- 提出中: **E066** (`agents/e066/`, 09-17 提出、**v46 土台** + E065 のライブ層) と E065 (`agents/e065/`, ref 56243664, v43 土台)。
+  **v43 は 3 版古く、E065 は素の v45 に 1W15L・素の v46 に 5W11L で負けていた**。E066 は E065 に 14W2L +1,386。
+  ただし **E066 vs 素の v46 は 19W13L +102** — ライブ層の価値は v46 が同じ着想 (same-turn sale race / sale timing) を取り込んで消えた。
+  **今後の差別化は Transformer 売り層のみ**。公開シャシーの新版確認は `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`、
+  取り出し手順は `third_party/public_agents/NOTICE.md` 末尾。
+- 学習側の現在地と打ち止めになった手は `rl/README.md`「Policy3」節。最良は bc15_ep3 95.4k / bc18_ep3 −16.9k (対 v41 32 戦、すべて SE 内)。
+
+## 旧・現在地 (2026-09-15)
 
 - 提出中: **E065** (`agents/e065/`, ref 56243664、09-15 提出、v43 土台 + SELL 先頭化 + 適応リード) と **E062** (`agents/e062/`, ref 56243229、E061 + SELL 先頭化)。E061 (2814) は押し出し。
 - 構成: 公開 NB「ahmedberatozer v42」の反応層 (base.py、そのまま) + 自前ライブ層 (main.py、E058 と同一)。

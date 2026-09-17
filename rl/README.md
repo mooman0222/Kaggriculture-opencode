@@ -145,7 +145,15 @@ Majkel 実測で **売り 1,477 個/局 のうち 55.8 個 (3.8%、名目 $4,840
 **✅ 問題なし**: `unit_op` の取りこぼし 0 件 (エンジンの op 語彙 `kagsim.cpp` の `OPI` と `features.OPS` は完全一致)、市場注文の種類の取りこぼし 0 件、
 上限クリップ 0 件、ユニットの量バケツ (PICKUP/PLACE) の丸め誤差 6 件/57,527 (無視可)。
 
-### 次にすること (2026-09-17、優先順)
+### 次にすること (2026-09-17 夜、優先順)
+
+0. **夜間 Kaggle bc22 の結果**: `kaggle kernels output mmn0222/kaggriculture-bc22-policy3 -p tmp/kaggle_out_bc22 --force`。
+   Majkel 854 局・初期値なし 4 epoch lr 5e-4 (bc20 レシピ) の各 epoch + bc15/bc18/bc20_ep3 を**対 v41 64 戦**で評価 (`rl/kaggle16/`)。
+   32 戦 (SE ±3.1k) では bc15 95.4k / bc18 92.8k / bc20 92.1k の順位がつかないため、64 戦で決着させる。
+0b. **ハイブリッド (テープ + Transformer 売り層)**: 土台は `agents/e066/` (v46)。**追加のみ**の売り層として `main.py` の `_sell` の兄弟に置く。
+   実装前に `.opencode/knowledge/refs/chassis_market_anatomy.md` を読むこと (全面差し替えは在庫の二重売り、スロット 0 は契約、終局 712-717 は 9 本 SELL 固定、10 本上限)。
+   推論は numpy (`export_agent.py` → `np_policy3.py` + `np_act3.py`)。market ヘッドだけ使えばよい。
+
 
 主軸は **Majkel との差 (18k) を埋める**こと。PASS は解決済みで律速ではないと判明したので、残る差の実体を追う。
 
