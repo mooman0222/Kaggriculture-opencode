@@ -25,7 +25,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 `act2.py` (推論: ユニット逐次に目的タイルを選び claim、到着時に作業)、`rollout2.py` (ベクトル化自己対戦、logp を保存)、`np_policy2.py` (numpy 推論)。
 旧: `model.py` / `train_bc.py` / `bc_play.py` / `rollout.py` / `ppo.py` (v1: 方向を直接予測、崩壊した)。
 
-## Policy3: 一段 option 方策 (現行本線) — 現在地 2026-09-16
+## Policy3: 一段 option 方策 (現行本線) — 現在地 2026-09-17
 
 - `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
   `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
@@ -44,6 +44,8 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 | **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
 | bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 200 局では飽和 |
 | **bc15_ep3** | **bc9k_ep3 から Majkel 2 提出の全量 713 局で 4 epoch lr 2e-4 (Mac 54 分)** | **32 戦 95.4k / −17.1k / 2 勝** | 現在の最良。dataset `mmn0222/kaggriculture-rl-majkel0916` v3 (data/majkel_all, ckpt/bc15_ep3.pt) |
+| **bc18_ep3** | **修正ラベル + Majkel 854 局、bc9k_ep3 から 4 epoch lr 2e-4 (Mac 62 分)** | **32 戦 92.8k / −16.9k / 3 勝** (ep2 95.9k/−20.3k) | PASS 486→179・MOVE 2982→3373 と行動は 1 位に接近、得点は bc15 と同格 |
+| bc19 | 公開データ 2,132 局 (旧 634) で bc5_ep3 から初期値を焼き直し → Majkel 854 局で fine-tune (Kaggle `rl/kaggle15`) | 実行中 (09-17) | kernel `mmn0222/kaggriculture-bc19-policy3` |
 | bc16k_ep0〜3 | bc15_ep3 から同データで 4 epoch 継続 lr 1e-4 (Kaggle `rl/kaggle14`) | ep0 94.4k / −14.3k / 6 勝 → ep3 64.6k / −84k | 5 epoch 目までは同格、以降は val が上がりながら閉ループ崩壊。epoch は打ち止め |
 
 ### 診断で分かったこと (scratchpad の診断スクリプトは会話ログ、結論は experiments.md 09-16 行)
@@ -62,36 +64,82 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 4. 推論側の細工 (補完層・班分け・復号規則・待機ラベル・自己軌跡) は全部効かなかったので再挑戦しない。
 5. 配備は対応済み (09-17、「次にすること」4. を参照)。提出実績 ref 56283017 (trial)。
 
+**PASS ラベルのバグ修正 (2026-09-17)**: `labels.py` は「その日の残り時間に作業が無い」ユニットを一律 (現在タイル, PASS) にしていたため、
+夕方に目的地へ歩いている途中のユニットまで PASS 教師になっていた。Majkel の実測 PASS 62/局 に対しラベルは **461/局** (うち 404 は生の行動が MOVE)。
+h=23 では 64%、h=22 で 37% が PASS ラベル。bc15_ep3 の open-loop 予測 PASS は 448/局 で、ラベルの時刻分布と一致 — 方策は壊れたラベルを忠実に写していた
+(物差しの「PASS ≦ 100」が届かなかった真因)。修正: 移動中で当日中に作業が無い場合は `dest=-1` (bc_loss3 の `present` から除外)、実際に待機していたときだけ PASS。
+ラベルは 461 → 57/局、学習対象は 5.6% 減。**既存 shard は `.venv/bin/python rl/fix_pass_labels.py 'tmp/rl/majkel_all/*.npz'` で修復**
+(Kaggle dataset `majkel0916` v3 のデータも旧ラベルなので、落としたら必ず実行する)。再学習は bc15 レシピで。
+
+**bc18 (完了、ラベル修正の効果測定)**: 修正ラベル + Majkel 854 局 (713 +141、09-17 取得) を bc15 と同一レシピで学習。
+対 v41 32 戦 ep0 76.5k/−45.1k → ep1 85.0k/−26.7k → ep2 **95.9k**/−20.3k → ep3 92.8k/**−16.9k**/3 勝 (bc15_ep3 95.4k/−17.1k/2 勝)。
+**得点は横ばい (SE ±3.1k)**。一方 4 戦の物差しは PASS 486→**179**、WATER 1161→1259、HARVEST 388→411、MOVE 2982→**3373** (Majkel 3400)、d18 畑 54→56 と全項目で 1 位に接近。
+→ **PASS は得点の律速ではなかった** (bc11 の「待機は症状」を、原因を除去した形で再確認)。残る 18k は収穫 (411 vs 497) と給水 (1259 vs 1387) のスループット。
+残る PASS 179 の大半は h22〜23 = 修正で教師を外した領域で、初期値 bc9k_ep3 (open-loop PASS 436) の prior が埋めている。
+**ただしこれはラベルのバグではない**: 混合データを修復しても bcw で masked は 41/局だけ (Majkel は 401/局)、修復後も bcw の生 PASS 532・ラベル 389、pq は 547/499。
+上位陣は本当に 530 回待機している。初期値をラベル修復で焼き直しても PASS は削れない (実測済み)。
+ラベル修正の価値は得点ではなく「教師の写しとして正しくなったこと」= データ増量・PPO 初期値の素性と、物差し PASS が初めて方策の実力を測れるようになったこと。
+
 **bc16 (完了)**: bc15_ep3 の継続は ep0 が同格 (94.4k / −14.3k)、以降は崩壊 (ep3 64.6k)。epoch は合計 4〜5 が上限で、**残る本命の手はデータ量 (Majkel の日次エピソード追加)**。次に効く見込みの手: 市場層の売り時刻 (夕方一括、規則 C で +3〜5k、experiments.md「bc15 vs E065 の負け方」)、d9〜15 のメロン収穫の遅れ (残り 13k) の調査。
 
-### 次にすること (2026-09-16 深夜、優先順) — 09-17 unagi 作業で 1・2・4 は済み
+### 次にすること (2026-09-17、優先順)
 
-主軸は **Majkel との差を埋める**こと。E065 との 18k 差 (experiments.md「bc15 vs E065 の負け方」) は別問題ではなく、Majkel の行動 (d10 にメロン 12 個を収穫して即売) を写し損ねた一断面。E065 個別のルール積み増しはしない。
+主軸は **Majkel との差 (18k) を埋める**こと。PASS は解決済みで律速ではないと判明したので、残る差の実体を追う。
 
-1. ~~売り規則 C を市場層に載せる~~ **済 (+3k)** : `act_common.py` の市場デコード後 (`apply_sell_rules`、夕方 h≥20 投売り + 買保護 + 肥料投売り既定)。対 v41 32 戦 97.2k/−14.1k、対 E065 16 戦 −13.1k。変種 (日中投売り・牛→羊・メロン保持) は全棄却。
-2. ~~メロン収穫の遅れの診断~~ **済 (バグなし)** : 収穫齢は平均 10.22 日 (滞留 0.22 日のみ)、真因は植え staggering (d3 植え 2.2 個) + 売り時。保持 option・合法判定は正常。
-3. **データ量を増やす** (学習側で唯一実績のある手、+500 局で +7k): Majkel のエピソードは日 50 局前後増える。`rl/fetch_episodes.py --sub 56156662 / 56216119 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` で追加し、
-   bc9k_ep3 から 4 epoch lr 2e-4 (bc15 レシピ) で bc19 (bc17 = 732 局は横ばいで不採用、次は 900〜1000 局)。新しい提出が出たら (Majkel が方策を更新したら) その id も足す。合計 4〜5 epoch を超えない (bc16 で崩壊)。
-4. ~~配備準備~~ **済 (検証済み)** : `export_agent.py` は Policy3 対応済み (`np_policy3.py` + `np_act3.py` + `act_common.py` 同梱)。torch vs numpy per-step 4314 手 0 不一致、kag_eval 8 戦は全戦コイン一致、self-match DONE/DONE、初手 142ms。提出実績: ref 56283017 (trial)。
-5. やらないこと: epoch 追加、PPO (再凍結、規模が前提)、農場側の推論強制・班分け・待機ラベル・自己軌跡・温度サンプリング・容量 d256 (全部不発、experiments.md 09-16 夜行)。
+1. **収穫と給水のスループット** (本命、未着手): bc18 は HARVEST 411 / WATER 1259 に対し Majkel は 497 / 1387。得点差はここ。
+   メロンの収穫齢は 09-16 に診断済み (滞留 0.22 日、バグなし) だが **他の作物は未調査**。まず作物別に「実った株が収穫されるまでの滞留」を測る。
+2. **bc19 の結果を見る** (Kaggle 実行中、下記): 初期値 bc9k を公開データ 2,132 局 (旧 634) で焼き直し → Majkel 854 局で fine-tune。データ量の梃子が初期値側にも効くかの検証。
+3. **Majkel 単独データのみ (初期値なし) の学習**: 混合初期値の寄与を切り分ける。
+4. データ増量の継続: Majkel は 09-17 に +141 局 (854)。`fetch_episodes.py` で日次追加。
+5. やらないこと: epoch 追加 (bc16 で崩壊、合計 4〜5 が上限)、PPO (再凍結、規模が前提)、農場側の推論強制・班分け・待機ラベル・自己軌跡・温度サンプリング・容量 d256、
+   **PASS を減らす目的の細工** (bc18 で「PASS 486→179 でも得点不変」と実証済み)。
 
 ### データと再開 (別 PC)
 
-- **取得済みデータと重み**: Kaggle dataset **`mmn0222/kaggriculture-rl-majkel0916` v3** = `data/majkel_all/` (Majkel 713 局 = 提出 56156662 450 局 + 56216119 263 局、119MB)、`ckpt/` (bc9k_ep3、bc13_ep3、**bc15_ep3** = 現最良)、`tapes/tapes_top.pkl` (記録相手 190MB、PPO 用)。
-  ```
-  kaggle datasets download mmn0222/kaggriculture-rl-majkel0916 -p /tmp/kaggle_ds --force && cd /tmp/kaggle_ds && unzip -o -q '*.zip'
-  mkdir -p tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all tmp/rl/ && cp /tmp/kaggle_ds/ckpt/*.pt tmp/rl/     # tapes は PPO を回すときだけ
-  .venv/bin/python rl/play3.py tmp/rl/bc15_ep3.pt --games 32     # 95.4k / −17.1k / 2 勝 が再現すれば環境 OK
-  ```
-- **データを増やす** (Majkel のエピソードは 1 日 50 局前後増える): 提出 id は `kagglesdk` の `list_team_public_submissions(team_id=16718819)` (tests/fetch_top.py 参照)。09-16 時点は 56156662 と 56216119 の 2 本。
-  09-16 深夜時点で `tmp/rl/majkel_all` 732 局 (v3 の 713 +19、新規は平均 120.9k の高品質)。bc17 (732 局、bc15 レシピ) は 92.9k/−14.7k で横ばい・不採用。次は **900〜1000 局超で bc19** (同レシピ)。200→713 局で +7k の実績、+19 局では動かない。
-  `.venv/bin/python rl/fetch_episodes.py --sub 56156662 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` (既存 episode id は飛ばす)。`tests/fetch_top.py` は 1 提出 200 局までなので使わない。
-  新しい提出が出たら (Majkel の方策が変わったら) その id も足す。
-- **学習** (bc15 レシピ): `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_all/*.npz' --out tmp/rl/bcN.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4` (Mac MPS 13.5 分/epoch、Kaggle T4 約 7 分)。継続は `--init tmp/rl/bc15_ep3.pt --lr 1e-4`。
-- **評価**: 対 v41 `rl/play3.py CKPT --games 32`、対提出 `rl/play3.py CKPT --games 16 --vs agents/e065/main.py`。1 位の物差し (op 数・渇死・2 日放置) を出す診断は README の表の値と比べる (スクリプトは会話ログの scratchpad、`play3.py` への組み込みは未着手)。
-- **Kaggle で回す**: コードは dataset `mmn0222/kaggriculture-rl-code` v3 (rl/ を平置き、更新は `cp rl/*.py tmp/kaggle_code/rl/; cp rl/sp/*.py tmp/kaggle_code/rl/sp/; kaggle datasets version -p tmp/kaggle_code -r zip -m msg`)、
-  kagsim と v41 は `mmn0222/kaggriculture-rl-bc7` の `code/`。実行スクリプトは `rl/kaggle14/run_bc16.py` を雛形に (入力は `/kaggle/input/**/<目印ファイル>` で探す、平置き対応)。
-  投入前に偽の `/kaggle/input` で乾式実行する。カーネルは完了時にしか出力を保存しない (長時間は `--max-minutes` で塊にする)。
+**まず環境**: 冒頭の「環境の再構築」で venv + kagsim をビルド。
+
+**Kaggle dataset (git 管理外の shard と重み、すべて修正ラベル版)**
+
+| dataset | 中身 |
+|---|---|
+| `mmn0222/kaggriculture-rl-majkel0917` | `data/majkel_all/` Majkel 854 局 (157MB)、`ckpt/` bc5_ep3・bc9k_ep3・bc15_ep3 |
+| `mmn0222/kaggriculture-rl-pq0917` | `<team_id>/<episode>.npz` 上位 40 チーム 2,132 局 (424MB、公開データ由来) |
+| `mmn0222/kaggriculture-rl-code` | `rl/` 平置き (コード配布用) |
+| `mmn0222/kaggriculture-rl-bc7` | `code/kagsim` (C++ ソース) と `code/v41_main.py` (対戦相手) |
+
+```
+kaggle datasets download mmn0222/kaggriculture-rl-majkel0917 -p /tmp/kaggle_ds --force && cd /tmp/kaggle_ds && unzip -o -q '*.zip'
+mkdir -p tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all tmp/rl/ && cp /tmp/kaggle_ds/ckpt/*.pt tmp/rl/
+.venv/bin/python rl/play3.py tmp/rl/bc15_ep3.pt --games 32     # 95.4k / −17.1k / 2 勝 が再現すれば環境 OK
+```
+
+**⚠ 古い dataset (majkel0916 / bc6 / bc7) は旧ラベルのまま。落としたら必ず修復する**:
+`.venv/bin/python rl/fix_pass_labels.py 'tmp/rl/<dir>/*.npz'` (誤ラベル集合は `dop==PASS & op∈MOVES` で shard だけから一意に決まる。冪等)。
+
+**データを増やす**
+- Majkel (日 50〜140 局増える): 提出 id は `kagglesdk` の `list_team_public_submissions(team_id=16718819)` (`tests/fetch_top.py` 参照)。09-17 時点は 56156662 と 56216119 の 2 本。
+  `.venv/bin/python rl/fetch_episodes.py --sub 56156662 --team Majkel1337 --out tmp/rl/majkel_all --n 1000` (既存 id は飛ばす)。新しい提出が出たらその id も足す。
+- 公開データ (`georgymamarin/kaggriculture-episodes`、毎日更新、全体 19.4GB): 月次 parquet は凍結され新しい局は **`replays_2026-09b` / `09c` に入る**ので、新しいシャードも落とす。
+  `kaggle datasets download georgymamarin/kaggriculture-episodes -f <file> -p tmp/data --force` で `teams.csv` `episodes.csv` と各 parquet を取り、
+  `.venv/bin/python rl/extract_parquet.py --parquet tmp/data/<file> --top 40 --out tmp/rl/pq` (既存 episode は飛ばす、実測 0.55 秒/局)。
+  **クロールは数日遅れる** — 09-17 時点で top40 の局は 09-14 が 42 件、09-16 は 4 件しかない。「昨日の分」を期待しないこと。
+
+**学習**
+- Majkel fine-tune (bc15/bc18 レシピ): `.venv/bin/python rl/train_bc3.py --data 'tmp/rl/majkel_all/*.npz' --out tmp/rl/bcN.pt --init tmp/rl/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4`
+  (Mac MPS 15.6 分/epoch @854 局、Kaggle T4 約 7 分 @713 局)。合計 4〜5 epoch を超えない。
+- 初期値 (bc9 レシピ): `--data 'tmp/rl/pq/*/*.npz' --init tmp/rl/bc5_ep3.pt --epochs 4 --bs 128 --lr 5e-4 --max-games 2000`。
+  **`--max-games` は RAM 制約** — `train_bc3` は全 shard を RAM に載せる (約 7MB/局)。2,000 局 ≈ 14GB、3,506 局は 15GB マシンで OOM した実績あり。
+
+**評価**: 対 v41 `rl/play3.py CKPT --games 32` (32 戦 91 秒、SE ±3.1k)、対提出 `--games 16 --vs agents/e065/main.py`。
+物差し (PASS / WATER / HARVEST / MOVE / d18 畑) は会話ログの scratchpad スクリプト、`play3.py` への組み込みは未着手。
+
+**Kaggle で回す**
+- コード更新: `cp rl/*.py tmp/kaggle_code/rl/; cp rl/sp/*.py tmp/kaggle_code/rl/sp/; kaggle datasets version -p tmp/kaggle_code -r zip -m msg`
+- 雛形: `rl/kaggle15/run_bc19.py` (2 段学習 + 評価。入力は `$KAGGLE_ROOT/input/**/<目印ファイル>` で探す)。
+  **乾式実行**: `KAGGLE_ROOT=<偽ツリー> KAGGLE_DRY=1 .venv/bin/python rl/kaggle15/run_bc19.py` (1 epoch / 4 局 / 2 戦に縮む)。偽ツリーは symlink でよい。
+- 投入 `kaggle kernels push -p rl/kaggle15`、確認 `kaggle kernels status mmn0222/kaggriculture-bc19-policy3`、
+  取得 `kaggle kernels output mmn0222/kaggriculture-bc19-policy3 -p tmp/kaggle_out_bc19 --force` (`eval.txt` に 32 戦の結果)。
+- カーネルは**完了時にしか出力を保存しない**。長時間は塊に分ける。
 
 ## 自己対戦 PPO (`rl/sp/`、2026-09-15) — 基盤は完成、学習は規模不足で凍結
 
