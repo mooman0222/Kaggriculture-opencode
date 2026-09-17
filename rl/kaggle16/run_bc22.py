@@ -33,7 +33,7 @@ rl = os.path.dirname(first("rollout3.py"))
 kagsim_src = os.path.dirname(first("kagsim/setup.py"))
 v41 = first("v41_main.py")
 majkel = os.path.dirname(first("majkel_all/*.npz"))
-refs = sorted(glob.glob(os.path.join(os.path.dirname(first("ckpt/bc18_ep3.pt")), "*.pt")))
+refs = sorted(glob.glob(os.path.join(os.path.dirname(first("bc18_ep3.pt")), "*.pt")))   # dataset は ckpt/ の中身をルートに展開する
 print("rl:", rl, "shards:", len(glob.glob(os.path.join(majkel, "*.npz"))), "refs:", [os.path.basename(p) for p in refs], flush=True)
 
 os.makedirs(output, exist_ok=True)
