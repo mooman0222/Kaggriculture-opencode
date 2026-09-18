@@ -4,30 +4,28 @@
 Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」がスロットにあることが全て** (有効なのは最新 2 提出、選べない)。
 時系列の経緯は `.opencode/knowledge/history.md`、実験の一次記録は `.opencode/knowledge/experiments.md`。
 
-## 明日やること (2026-09-17 夜に中断)
+## 次にやること (2026-09-18)
 
-1. ~~夜間 Kaggle bc22~~ **済**: bc22 は bc20 の再現 (margin −21.0k、t=1.39 で区別不能)。64 戦の順位は `refs/transformer_policy.md` 1 節。
-1b. **夜間 Kaggle の結果を取る (手順)**: `kaggle kernels output mmn0222/kaggriculture-bc22-policy3 -p tmp/kaggle_out_bc22 --force` →
-   `eval.txt` に bc22 (Majkel 854 局・初期値なし 4 epoch) の各 epoch と bc15/bc18/bc20_ep3 の**対 v41 64 戦**。
-   ねらいは (a) 09-17 の結論がすべて 32 戦 SE ±3.1k に埋もれている順位を 64 戦で確定させる、(b) 別ハードで bc20 (92.1k) が再現するか。
-2. ~~ハイブリッド実装~~ **棄却済 (09-18)**。伸びしろが対 v46 で +$9/局しかない。`refs/transformer_policy.md` 5 節。
-3. **E066 の実戦結果を見る** (09-17 提出、ref は `kaggle competitions submissions kaggriculture`)。
-4. 保留: 市場バケツの丸め修正 (`features.bucket()` の同点が下振れ。shard 作り直し = Majkel 854 局の再取得 2.4 時間が前提、`rl/README.md`「ラベル監査」節)。
+1. **公開シャシーの新版を追う** — 最も費用対効果が高い。v43 → v46 の載せ替えは作業 1 時間で E065 比 +1,386。
+   3 日で 3 版出ており、気づかないと**素の公開エージェントに負ける** (E065 は素の v45 に 1W15L だった)。
+   確認 `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`、取り出しは `third_party/public_agents/NOTICE.md` 末尾。
+2. **E066 の実戦結果を見る** (09-17 提出 ref 56304391、`kaggle competitions submissions kaggriculture`)。
+3. 学習方策で残る唯一の未解決は**人参の cold start** (`refs/transformer_policy.md` 4.3 / 8 節)。
+4. 保留: 市場バケツの丸め修正 (shard 作り直し = Majkel 854 局の再取得 2.4 時間が前提、`refs/transformer_policy.md` 6 節)。
 
-## 現在地 (2026-09-17)
+## 現在地 (2026-09-18)
 
-- 提出中: **E066** (`agents/e066/`, 09-17 提出、**v46 土台** + E065 のライブ層) と E065 (`agents/e065/`, ref 56243664, v43 土台)。
+- 提出中: **E066** (`agents/e066/`, ref 56304391、09-17 提出、**v46 土台** + E065 のライブ層) と E065 (`agents/e065/`, ref 56243664, v43 土台)。
   **v43 は 3 版古く、E065 は素の v45 に 1W15L・素の v46 に 5W11L で負けていた**。E066 は E065 に 14W2L +1,386。
   ただし **E066 vs 素の v46 は 19W13L +102** — ライブ層の価値は v46 が同じ着想 (same-turn sale race / sale timing) を取り込んで消えた。
-  **今後の差別化は Transformer 売り層のみ**。公開シャシーの新版確認は `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`、
-  取り出し手順は `third_party/public_agents/NOTICE.md` 末尾。
+  **中身はほぼ素の v46**。シャシーの追随が生命線。
 - **学習方策 (Transformer) の知見は `.opencode/knowledge/refs/transformer_policy.md` に集約**。手順書は `rl/README.md`。
-  対 v41 64 戦の margin で bc15_ep3 −15.4k / bc18_ep3 −17.1k (両者 t=0.91 で区別不能)。提出系との差は約 20k。
+  対 v41 64 戦の margin で bc15_ep3 −15.4k / bc18_ep3 −17.1k (両者 t=0.91 で区別不能)。提出系との差は約 20k で、締切 9/30 までに埋める道は立っていない。
   **判定は margin で行う (own では順位がつかない)**、epoch は 4 が上限、教師は Majkel のみ、初期値は混合 1,200 局。
 - **ハイブリッド (テープ + Transformer 売り層) は 09-18 に棄却**: 実装前に測った伸びしろが対 v46 で +$9/局 (対 v43 なら +$1,275)。
-  v46 が畜産物の売り時を作り込んだため。測定法と検証は `refs/transformer_policy.md` 5 節。
+  v46 が畜産物の売り時を作り込んだため。**学習方策を提出系に載せる道は、これで塞がった**。測定法と検証は `refs/transformer_policy.md` 5 節。
 
-## 旧・現在地 (2026-09-15)
+## 旧・現在地 (2026-09-15、履歴。提出・LB の記述は古い)
 
 - 提出中: **E065** (`agents/e065/`, ref 56243664、09-15 提出、v43 土台 + SELL 先頭化 + 適応リード) と **E062** (`agents/e062/`, ref 56243229、E061 + SELL 先頭化)。E061 (2814) は押し出し。
 - 構成: 公開 NB「ahmedberatozer v42」の反応層 (base.py、そのまま) + 自前ライブ層 (main.py、E058 と同一)。
@@ -113,30 +111,20 @@ tmp/                         git 管理外の作業領域 (リプレイ、プー
 - 適応型の記録行動をテープ再生 (Majkel / MMPQ): 購買タイミングが崩れて崩壊。
 - 上位ルートの丸ごと再生 (E019 期) と部分移植 (E026/E045)。
 
-## RL 路線 (Transformer 方策、ユーザー方針: 諦めない) — 現在地 2026-09-16 夜
+## RL 路線 (Transformer 方策) — 現在地 2026-09-18
 
-- 目的: 1 位 (Majkel1337 3187.7、学習方策) に勝つ学習エージェント。手順・結果表・再開方法は `rl/README.md`「Policy3」節、経緯は experiments.md の 09-16 行。
-- 現行本線 = **Policy3** (`model3.py`/`train_bc3.py`/`act3.py`/`play3.py`: joint (タイル, 作業) option、prev 廃止、option を到着まで保持)。
-- 到達点: **bc15_ep3 = bc9k_ep3 (bc7 混合 1,200 局) を 1 位 Majkel1337 の実戦 713 局 (2 提出の全量) で 4 epoch 追加学習 → 対 v41 32 戦 own 95.4k / margin −17.1k / 2 勝**
-  (bc13 200 局 88.5k/−27.8k、旧基準 bc5_ep3 59.6k/−69k)。**現行提出 E065/E062 には 16 戦 −18k (1 勝)**: 提出は v41 に +2.7k なので差は約 20k。重み・shard は dataset `mmn0222/kaggriculture-rl-majkel0916` v3。
-- 今日の結論: (1) BC の天井は demo の平均像 (PASS 529/局) を写すこと。教師を 1 位に絞ると給水 1203・畑 57 株に伸びる。
-  (2) 推論側の補完層・班分け・復号規則、待機ラベルの重み、自己軌跡の混合はすべて効かないか悪化 (方策は塞がれた option の代わりに PASS を選ぶ)。
-  (3) 1 位の物差し: PASS 54 / WATER 1387 / 2 日放置 1.9% / 渇死 17。bc13 は 510 / 1203 / 4.0% / 62 DIG (生きた作物 24)。
-- bc14 (bc13 継続 4 epoch、200 局) は飽和、bc15 (713 局) で +7k → データ量で伸びる。bc16 (bc15 継続 4 epoch) は ep0 同格・ep3 崩壊で epoch 打ち止め。
-- **09-17 の訂正 — PASS はラベルのバグだった**: `labels.py` が「当日中に作業が無い」ユニットを一律 (現在タイル, PASS) にしていたため、夕方に歩いているユニットが全部 PASS 教師に
-  (Majkel 生 PASS 62/局 に対しラベル 461/局、うち 404 は MOVE)。bc15_ep3 の予測 PASS 448 は**ラベルの時刻分布と一致**していた。修正 (`rl/fix_pass_labels.py` で既存 shard も修復) 後の
-  **bc18 = 32 戦 92.8k/−16.9k/3 勝、PASS 486→179・MOVE 2982→3373 と行動は 1 位に接近するが得点は bc15 と同格**。→ **PASS は得点の律速ではない**。上の (2)(3) の「待機」まわりの解釈はこれで置き換わる。
-  混合データ (bcw/pq) は修復しても生 PASS 530 前後で、上位陣は本当に待機している。**PASS を減らす目的の施策は打ち止め**。残る 18k は収穫 411 vs 497 / 給水 1259 vs 1387。
-- **bc19 (初期値を公開データ 634→2,000 局で焼き直し) は棄却**: bc19_ep3 88.0k で bc18 92.8k・bc20 92.1k を下回る。bc20 (初期値なし) と併せ **混合データの事前学習は無価値〜有害**。教師は 1 位のみで確定。
-  1 段目 bc9k19_ep3 は **val option 92.0% (最高) で閉ループ 49.6k (最低)** — val 精度を指標にしてはいけないことの最も鮮明な例。
-- **bc20 = Majkel 854 局のみ・初期値なし 4 epoch → 32 戦 92.1k (bc18 92.8k と SE 内)**。混合初期値 bc9k の寄与は測定限界以下。bc20 の継続 (bc21、2 epoch) は 87.8k で不発 — val は改善するのに閉ループが落ちる bc16 と同型で、**epoch 上限 4 は初期値の有無によらない**。
-- **09-17 スループット診断**: 給水は問題なし (日末給水済みの株の割合 0.77 vs 師 0.75)。収穫の差は 1 株あたりの実り (yield_units 0.58 vs 0.82) で、原因は**作物構成** — 人参 PLANT 5.8 vs 68.8、苺 52.0 vs 35.2 (人参は初収穫 2 日、苺は 10 日)。
-  両ヘッドの open-loop は正常 (農場 91.1%、市場は人参種を多めに予測) で純粋な閉ループ乖離。分岐点は d6-8 の苺の積みすぎ。市場 pos_w デバイアス () は苺を師の水準まで戻すが人参は戻らず得点も動かない → 棄却。**次は人参の cold start**。
-- **未修正の欠陥 (09-17 のラベル監査、`rl/README.md`「ラベル監査」節)**: `features.bucket()` の同点が必ず小さい方に落ちるため**市場の数量ラベルが系統的に少なめ**
-  (売り 55.8 個/局 = 3.8%・名目 $4,840、買い小麦 11.4 個/局 を取りこぼす)。修正は `bucket()` の同点を大きい方へ倒す 1 行で、bc21 と同じレシピで A/B する。
-  ほかに PLACE_COW の mask 違反 19/57,527、目的地ラベルの 0.44% が `legal_ops_at` で非合法。
-- **方針 (ユーザー合意)**: 本命 = Majkel 実戦の BC スケール (別提出のエピソードで 400〜600 局 → bc15)。PPO は検証扱い (見込み 3〜4 割): Policy3 用 `rl/sp/train3.py` を Kaggle
-  `mmn0222/kaggriculture-sp4-policy3-ppo` (`rl/kaggle13/`) で 2.5 時間の塊、停止基準 = it25〜50 で渇死・逃走が減らない、または 32 戦が bc13_ep3 未満。推論側の細工は再挑戦しない。
+**知見は `.opencode/knowledge/refs/transformer_policy.md` に集約した。ここには二重に書かない** (09-16〜17 にここへ書いた
+「混合初期値は無価値」「バケツ修正は 1 行」「給水が足りない」等は後日いずれも訂正されており、そちらが正)。
+手順は `rl/README.md`、経緯は experiments.md の 09-16〜18 行。
+
+- 目的: 1 位 Majkel1337 (LB 3186.6、学習方策) に勝つ学習エージェント。本線 = **Policy3**
+  (`model3.py`/`train_bc3.py`/`act3.py`/`play3.py`: joint (タイル, 作業) option、prev 廃止、option を到着まで保持)。
+- 到達点: 対 v41 64 戦の margin で bc15_ep3 **−15.4k**、bc18_ep3 −17.1k (両者 t=0.91 で区別不能)。提出系との差は約 20k。
+- **打ち止めになった手**: epoch 追加、初期値のデータ増量、PASS 削減、pos_w デバイアス、自己軌跡 (DAgger 的)、
+  推論側の補完層・班分け・復号規則・温度サンプリング、容量 d256、PPO、**ハイブリッド (テープ + Transformer 売り層)**。
+  残る唯一の未解決は**人参の cold start**。
+- **測定の作法** (何度も誤った): 判定は margin で行う (own では順位がつかない)、val 精度は当てにならない、
+  seed を揃えたペア比較は効かない、64 戦で margin 差 4k 未満は区別できない。
 - 制約: Mac は BC と PPO を同時に走らせない (MPS メモリ)。Kaggle kernel は `rl/kaggleN/` (投入前に偽 `/kaggle/input` で乾式実行)。
 - コミュニティ (09-16 調査): 学習系で動いている公開物は Moriuchi 氏の純粋 RL (BC 4,600 局 + PPO 自己対戦、no-idle/sticky 規則) のみで、kagsim 対 v41 では 70.5k と bc9 と同帯。
   zhincez 氏の失敗録: PPO 10 走ゼロ勝 (4 つの罠)、農場と市場の半分ずつを別方策から取ると 0 コイン (per-turn 模倣の一致率は得点と無相関)。

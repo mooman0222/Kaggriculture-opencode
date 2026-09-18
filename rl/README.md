@@ -30,49 +30,19 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 - `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
   `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
 - `train_bc3.py`: 既存 shard の `dest`/`dop` を joint label に使う。`--init` で互換重みを引き継ぐ (Policy2 の encoder・市場・数量、Policy3 checkpoint の全部)。
-- `act3.py`: 現在地は実行可能手、遠隔地は地形上成立する将来作業を候補にし、選んだ option を到着まで保持。**推論に補完層・班分け・復号規則を足すと崩れる** (下の診断)。
+- `act3.py`: 現在地は実行可能手、遠隔地は地形上成立する将来作業を候補にし、選んだ option を到着まで保持。**推論に補完層・班分け・復号規則を足すと崩れる** (`refs/transformer_policy.md` 3 節)。
 - `play3.py`: kagsim 対 v41 の閉ループ評価。`rollout3.py`: 自分の軌跡を shard 化 (DAgger 的、bc12 で不成立)。
 
-### 結果 (対 v41、Kaggle 16 戦 = seed 5000〜5007 両席 / local 8 戦 = 5000〜5003)
+### 知見と結果表は `.opencode/knowledge/refs/transformer_policy.md` にある
 
-| 名 | 学習 | 16 戦 own | 備考 |
-|---|---|---|---|
-| bc9k_ep3 | bc7 混合 1,200 局、bc5_ep3 から 4 epoch (`rl/kaggle9/`) | 58.0k | local 8 戦 68.2k。家畜は demo 並みに回復、Policy2 の DIG/BUILD 荒らしは消えた |
-| bc10k_ep3 | bc9 から継続 4 epoch lr 2e-4 (`rl/kaggle10/`) | 53.1k | 頭打ち |
-| bc11k_ep3 | 同 + PASS_IDLE_WEIGHT 0.1 (`rl/kaggle11/`) | 57.8k | 待機は demo 並みに減るが浮いた手は MOVE/DIG へ |
-| bc12k_ep3 | 同 + 自己軌跡 200 局混合 (`rl/kaggle12/`, `rollout3.py`) | 39.8k | 自分の欠点を強化して悪化 |
-| **bc13_ep3** | **bc9k_ep3 から 1 位 Majkel1337 の直近 200 局のみ 4 epoch lr 2e-4 (Mac 20 分)** | **32 戦 88.5k / margin −27.8k** | local 8 戦 103.6k。WATER 1203・畑 57 株・2 日放置 4.0%。**基準 (bc5_ep3 59.6k/−69k) を初めて大きく超えた** |
-| bc14_ep3 | bc13_ep3 から継続 4 epoch lr 1e-4 | 32 戦 87.7k / −37.3k | 200 局では飽和 |
-| **bc15_ep3** | **bc9k_ep3 から Majkel 2 提出の全量 713 局で 4 epoch lr 2e-4 (Mac 54 分)** | **32 戦 95.4k / −17.1k / 2 勝** | 現在の最良。dataset `mmn0222/kaggriculture-rl-majkel0916` v3 (data/majkel_all, ckpt/bc15_ep3.pt) |
-| **bc18_ep3** | **修正ラベル + Majkel 854 局、bc9k_ep3 から 4 epoch lr 2e-4 (Mac 62 分)** | **32 戦 92.8k / −16.9k / 3 勝** (ep2 95.9k/−20.3k) | PASS 486→179・MOVE 2982→3373 と行動は 1 位に接近、得点は bc15 と同格 |
-| bc9k19_ep3 | 公開データ pq 2,000 局で bc5_ep3 から 4 epoch lr 5e-4 (Kaggle `rl/kaggle15`、73 分) | 32 戦 **49.6k / −79.6k** | **val option 92.0% = 全実行で最高**なのに閉ループ最低。open-loop と閉ループの無相関の最も鮮明な例 |
-| bc19_ep3 | 上を初期値に Majkel 854 局で 4 epoch lr 2e-4 (31 分) | 32 戦 **88.0k / −22.9k / 3 勝** (ep2 90.1k/−27.0k) | Majkel fine-tune 系で**最低**。初期値の局数 634→2,000 は逆効果 |
-| **bc20_ep3** | **修正ラベル + Majkel 854 局のみ、初期値なし 4 epoch lr 5e-4 (Mac 62 分)** | **32 戦 92.1k / −21.4k / 2 勝** | ep0 0.7k → ep2 62.3k → ep3 92.1k と**未収束**。混合初期値の寄与は測定限界以下。PASS 156・畑 57 |
-| bc21 | bc20_ep3 から Majkel 854 局で 2 epoch 継続 lr 2e-4 | 32 戦 ep0 89.4k/−31.7k、**ep1 87.8k/−22.8k/1 勝** | **伸びず**。val は 0.749→0.704 と改善するのに閉ループは 92.1k→87.8k = bc16 と同じ崩れ方。**epoch 上限はスクラッチにも当てはまる** |
-| bc16k_ep0〜3 | bc15_ep3 から同データで 4 epoch 継続 lr 1e-4 (Kaggle `rl/kaggle14`) | ep0 94.4k / −14.3k / 6 勝 → ep3 64.6k / −84k | 5 epoch 目までは同格、以降は val が上がりながら閉ループ崩壊。epoch は打ち止め |
-
-
-### 知見は `.opencode/knowledge/refs/transformer_policy.md` に移した
-
-学習方策そのものについて分かったこと (効いた手・打ち止めの一覧、測定の作法、PASS ラベルのバグ、作物構成の診断、
-市場 pos_w、ラベルの既知の欠陥、ハイブリッド棄却の根拠) は**すべてそちらにある**。
+学習方策そのものについて分かったこと (checkpoint の系譜と成績、効いた手・打ち止めの一覧、測定の作法、
+PASS ラベルのバグ、作物構成の診断、市場 pos_w、ラベルの既知の欠陥、ハイブリッド棄却の根拠) は**すべてそちら**。
 このファイルは手順書 — 環境の作り方・データの取り方・学習と評価のコマンド・別 PC での再開に絞る。
 
 **着手前に読むべき 3 点だけ再掲**:
-- **判定は margin で行う。own では順位がつかない** (own の SE ±2,600〜2,900、margin ±1,300)。val 精度は判断材料にならない。
-- **64 戦で margin 差 4k 未満は区別できない。** 同レシピの再現でも 3.3k ずれる。
+- **判定は margin で行う。own では順位がつかない** (対 v41 64 戦で own の SE ±2,600〜2,900、margin ±1,300)。val 精度は判断材料にならない。
+- **64 戦で margin 差 4k 未満は区別できない。** 同レシピの再現でも 3.3k ずれる。32 戦・16 戦の古い数字と直接比べない。
 - **epoch は 4 が上限**、**教師は Majkel のみ**、**初期値は混合 1,200 局 (bc9k) を使い増やさない**。
-
-### 結果の続き (09-17〜18)
-
-| 名 | 学習 | 対 v41 64 戦 margin | 備考 |
-|---|---|---|---|
-| **bc15_ep3** | bc9k_ep3 から Majkel 713 局 (旧ラベル) 4 epoch lr 2e-4 | **−15,382 ±1,342** (own 96,740、7 勝) | 最良。bc18 とは t=0.91 で**区別できない** |
-| bc18_ep3 | 同 + 修正ラベル + Majkel 854 局 | −17,085 ±1,312 (own 93,956、4 勝) | 行動は 1 位に接近 (PASS 486→179、MOVE 2982→3373) が得点は同格 |
-| bc20_ep3 | Majkel 854 局のみ・**初期値なし** 4 epoch lr 5e-4 | −24,265 ±1,926 (own 90,737) | bc18 との差 +7.2k (t=3.08) = **混合初期値は効いている** |
-| bc22_ep3 | bc20 の再現 (Kaggle `rl/kaggle16/`) | −20,972 ±1,379 (own 90,049) | bc20 と t=1.39 で区別できない = 走り間のノイズ床 |
-| bc19_ep3 | 初期値を公開データ 2,000 局で焼き直し → Majkel 854 局 (`rl/kaggle15/`) | 32 戦 −22,871 (own 87,984) | **棄却**。初期値の増量は逆効果。1 段目 bc9k19_ep3 は val option 92.0% (最高) で閉ループ 49.6k (最低) |
-| bc21 | bc20_ep3 から 2 epoch 継続 | 32 戦 −22,781 (own 87,790) | **棄却**。val は改善・閉ループは悪化 = epoch 上限はスクラッチにも当てはまる |
 
 ### 次にすること (2026-09-18、優先順)
 
