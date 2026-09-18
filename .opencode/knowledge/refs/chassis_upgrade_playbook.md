@@ -11,8 +11,15 @@ kaggle kernels pull ahmedberatozer/<ref> -p tmp/nb/<ref> -m
 ```
 ipynb の cell 4 が `SOURCE_BYTES = b''.join((...))` + `EXPECTED_MAIN_SHA256`。
 `MAIN = WORKDIR` の手前までを `exec` して取り出し、**sha256 を照合してから**書き出す (第三者コードを丸ごと実行しない)。
-**罠**: 人気ノートが既存版の再掲のことがある (flexonafft「Multi-Route Farming Agent」93 票は v45 とバイト一致)。
+**罠 1**: 人気ノートが既存版の再掲のことがある (flexonafft「Multi-Route Farming Agent」93 票は v45 とバイト一致)。
 取り込む前に既存の `third_party/public_agents/*/main.py` と sha256 を突き合わせる。
+
+**罠 2 (2026-09-18)**: **票数は強さの証明にならない。改変されて壊れている版がある。**
+`salemali7/kaggriculture-2900` (77 票、「2900+」を名乗る) を取り込んで測ったところ、
+**対 E070 0W32L avg −32,371、対 v46 0W16L −29,494、対 v41 0W16L −29,731** — 最古の土台にすら負ける。
+ノート自身の cell に `# We no longer need this hardcoded hash since the file has been modified` と
+`# REMOVED: assert len(agent_b...` があり、**他人のエージェントを改変して整合性 assert を外した版**だった。
+**見分け方: 元ノートの `expected_sha256` / `assert` がコメントアウトされていたら疑う。** 取り込みは不要 (再現の手間 15 分)。
 
 ## 2. 載せ替え (30 分)
 
