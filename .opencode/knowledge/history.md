@@ -1,5 +1,9 @@
 # Kaggriculture 開発履歴 (旧 AGENTS.md、2026-08-29〜09-14 の時系列記録。現在地は ../../AGENTS.md)
 
+> **注意: これは退役アーカイブ (2026-08-29〜09-14)。** 現在の構成・手順は `AGENTS.md` と `.opencode/knowledge/README.md` を見ること。
+> 本文中の hypotheses.md / refs/route-generation-project.md は既に存在しない。
+
+
 2人対戦の農業シミュレーション。シーズン終了時 (720ターン) の所持金が多い方が勝ち。
 現行提出は `agents/e058_base.tar.gz` (E058、2026-09-14、ref 56220023) と `agents/live_d_e057.tar.gz` (E057、ref 56166331)。`agents/e060.tar.gz` (E060、ref 56221811、E058 + 世界別に 0913 テープを混ぜた 42 本表) も提出済。E035a 時点の主力は `agents/kaito_v56_orak16.py` (kaggle が呼ぶのは最後の callable `agent_entry`。
 `main.py` は E019c 時点の化石だったため 2026-09-04 に削除済み、E019b が必要なら git 履歴から復元)。
@@ -170,7 +174,7 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 - **提出済み: ref 56156691 = `agents/sr0909_live_k6.tar.gz`** (0909 + クローンゲート K6 先回し + 暇な手 + 開幕ガード)。0909 ミラー 24勝0敗、実戦60席差し替えで 2勝→53勝
 - 現行スロット: 56156691 (E055) と 56112322 (E054 2590)
 
-### E057-live / E058 (2026-09-14): ahmedberatozer 系への乗り換え (詳細は refs/live-policy-ga.md 末尾、experiments.md E057-live〜E058)
+### E057-live / E058 (2026-09-14): ahmedberatozer 系への乗り換え (詳細は tracks/ga.md 末尾、experiments.md E057-live〜E058)
 
 - E057 (GA 0909 テープ + 売り層) は 09-13〜14 の実戦 80 戦で 25W55L、LB 2464 (724 位)。相手 75% は **ahmedberatozer 系** (More Yield / v38 / v39 と再配布 aurax7 v4・guru v3)。
   `tests/match_versions.py` (同シード・同席で全 719 手を再現照合) で版まで特定できる — 開幕ハッシュや sig24 では同系が全部同じに見える
@@ -229,7 +233,7 @@ frontier 原本 = agents/frontier_prvsiyan.py (公開 NB のペイロードを�
 2. **実装**: `agents/kaito_v56_orak16.py` に実装。既存挙動と A/B できるようフラグ/分岐で保持
 3. **検証**: `evaluate.py` で 10〜20試合 + mirror match (自分同士) を確認
 4. **記録**: `.opencode/knowledge/experiments.md` に結果を追記
-5. **反映**: 有意な改善なら `findings.md` を更新し `agents/kaito_v56_orak16.py` のデフォルトに反映
+5. **反映**: 有意な改善なら `refs/engine_facts.md` を更新し `agents/kaito_v56_orak16.py` のデフォルトに反映
 6. **提出**: 価値があればユーザーに確認して提出、レーティング推移を確認
 
 ## ナレッジベースの扱い (最重要)

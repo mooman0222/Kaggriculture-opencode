@@ -30,10 +30,10 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 - `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
   `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
 - `train_bc3.py`: 既存 shard の `dest`/`dop` を joint label に使う。`--init` で互換重みを引き継ぐ (Policy2 の encoder・市場・数量、Policy3 checkpoint の全部)。
-- `act3.py`: 現在地は実行可能手、遠隔地は地形上成立する将来作業を候補にし、選んだ option を到着まで保持。**推論に補完層・班分け・復号規則を足すと崩れる** (`refs/transformer_policy.md` 3 節)。
+- `act3.py`: 現在地は実行可能手、遠隔地は地形上成立する将来作業を候補にし、選んだ option を到着まで保持。**推論に補完層・班分け・復号規則を足すと崩れる** (`tracks/transformer.md` 3 節)。
 - `play3.py`: kagsim 対 v41 の閉ループ評価。`rollout3.py`: 自分の軌跡を shard 化 (DAgger 的、bc12 で不成立)。
 
-### 知見と結果表は `.opencode/knowledge/refs/transformer_policy.md` にある
+### 知見と結果表は `.opencode/knowledge/tracks/transformer.md` にある
 
 学習方策そのものについて分かったこと (checkpoint の系譜と成績、効いた手・打ち止めの一覧、測定の作法、
 PASS ラベルのバグ、作物構成の診断、市場 pos_w、ラベルの既知の欠陥、ハイブリッド棄却の根拠) は**すべてそちら**。
@@ -46,7 +46,7 @@ PASS ラベルのバグ、作物構成の診断、市場 pos_w、ラベルの既
 
 ### 次にすること (2026-09-18、優先順)
 
-学習方策で残っている手は少ない。打ち止めの一覧は `refs/transformer_policy.md` の 3 節。
+学習方策で残っている手は少ない。打ち止めの一覧は `tracks/transformer.md` の 3 節。
 
 1. **人参の cold start** (唯一の未解決、得点差に直結): 閉ループで人参を 5.8 株しか植えず (師 68.8)、d8-19 の
    1 株あたりの実り 0.58 vs 0.82 の差になっている。給水は正常・両ヘッドの open-loop も正常・pos_w デバイアスでも戻らない。
@@ -54,7 +54,7 @@ PASS ラベルのバグ、作物構成の診断、市場 pos_w、ラベルの既
    反実仮想の道具は `scratchpad/probe.py` の形 (自分の閉ループ状態を集めて特徴を 1 つずつ動かす)。
 2. **データ増量**: Majkel は日 50〜140 局増える。`fetch_episodes.py` で追加して bc15 レシピ。
    200 → 713 局で +7k の実績。713 → 854 局では動かなかったので、効くとしても対数的。
-3. 市場バケツの丸め修正: 再取得 2.4 時間が前提 (`refs/transformer_policy.md` 6 節)。
+3. 市場バケツの丸め修正: 再取得 2.4 時間が前提 (`tracks/transformer.md` 6 節)。
 4. **やらないこと**: epoch 追加、初期値のデータ増量、PASS 削減、pos_w デバイアス、自己軌跡、推論側の細工、
    容量 d256、PPO、**ハイブリッド (テープ + Transformer 売り層)**。すべて実測で棄却済み。
 

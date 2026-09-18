@@ -13,14 +13,14 @@ description: Kaggriculture (Kaggle の2人対戦農業シミュレーション) 
 `.opencode/knowledge/` 配下:
 
 - `README.md` — ナレッジの扱い方 (最重要規則)
-- `findings.md` — 検証済み知見 (日付・条件・検証方法・根拠つき)
-- `hypotheses.md` — 未検証の改善仮説 (優先度つき)
+- `refs/engine_facts.md` — 検証済み知見 (日付・条件・検証方法・根拠つき)
+- `tracks/*.md` の「生きている問い」節 — 未検証の改善仮説
 - `experiments.md` — 実験ログ (ID 採番制)
-- `meta.md` — コンペ状況・スコアリング・本番環境設定
+- `refs/competition.md` — コンペ状況・スコアリング・本番環境設定
 
 ## 2. 改善サイクル
 
-1. **仮説**: hypotheses.md から未検証のものを選ぶ (または新規追加)
+1. **仮説**: 該当 track の「生きている問い」から選ぶ (または新規追加)
 2. **実装**: agents/kaito_v56_orak16.py に実装。**農場側 (固定720手) への介入は禁止水域** — 安全な改善は市場側オーバーレイのみ。
    A/B できるよう変種ファイルを生成し、既存挙動はフラグ/分岐で保持
 3. **検証**: ローカル評価 (下記) で 10〜20試合 + self-match (両者 DONE)
