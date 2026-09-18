@@ -113,7 +113,7 @@ mkdir -p tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all tmp/rl/ && cp /tmp/kaggl
   (`pq0917` は team_id ディレクトリが直下、`ckpt0917` は `ckpt/` の中身が直下)。`first()` の目印は**ディレクトリを含まないファイル名**にする。
   bc19・bc22 とも初回はこれで落ちた。偽ツリーの乾式実行では防げないので、`kaggle datasets files <ref>` で実際の展開形を必ず確認する。
 
-## 自己対戦 PPO (`rl/sp/`、2026-09-15) — 基盤は完成、学習は規模不足で凍結
+## 自己対戦 PPO (`rl/sp/`) — 2026-09-18 に**探索の設計を入れ替えて再開**
 
 - `legal_all.py` 到着合法性のベクトル化 / `vec_env.py` 共有メモリ並列環境 (W ワーカー × K 局、両席とも方策、`--tapes` で記録相手) / `policy_batch.py` バッチ推論 (上位 8 候補 + 到着 PASS マスク + 目的地固定) /
   `train.py` PPO (決定単位の比率、凍結 teacher への解析 KL、critic 暖機、昇格、`--resume`) / `bench.py` スループット / `build_tapes.py`・`build_tapes_pq.py` 記録相手プール。
@@ -126,6 +126,77 @@ mkdir -p tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all tmp/rl/ && cp /tmp/kaggl
 - **Kaggle 実行 (2026-09-16 夜、`rl/kaggle13/run_sp4.py`、kernel `mmn0222/kaggriculture-sp4-policy3-ppo`)**: 初期値 bc13_ep3、GPU、4 worker × 48 局、学習 150 分 (`--max-minutes`) → 全 `_itK.pt` を対 v41 32 戦 → `eval.txt`。
   続きは同カーネルを `kernel_sources` に足して再投入 (`sp4k.pt.state` を見つけて `--resume`)。結果取得 `kaggle kernels output mmn0222/kaggriculture-sp4-policy3-ppo -p tmp/kaggle_out_sp4 --force`。
   この PC での本走 (it2 まで) は暖機中で |r−1|=0、渇死 477→2347/iter (d0→d12 の成長分)。
+
+### ★ 2026-09-18: 目的地を貪欲に固定した PPO (`--greedy-dest`) — いまここ
+
+**なぜ**: 学習ゼロの測定 (`experiments.md` の 4d 行) で、得点が行動ノイズに対し **`own ≈ 63,072 × (1−ε)^10`** で落ちると分かった。
+内訳は **目的地ノイズが損失の 85%** (単独で `(1−ε)^7.6`、ε を倍にすると損も倍) に対し、**作業ノイズは飽和** (ε 0.05 → 0.10 で −15.2k → −16.6k)。
+さらに**温度掃引は平ら** (temp 0.05〜0.7 で own 45〜56k、0.05 が 0.2 より悪く非単調 = 差はノイズ) なので、
+**収集温度を下げても貪欲比 20% は戻らない**。per-step で目的地をサンプリングする探索は、このゲームでは代償が大きすぎる。
+
+**何を変えたか** (既定オフ。付けなければ従来と完全に同じ):
+
+| 場所 | 変更 |
+|---|---|
+| `policy_batch.py` | `greedy_dest=True` で目的地を argmax に固定し、**log-prob を 0** にする。PPO 側は `live = (old != 0)` で自動的に除外 (committed と同じ扱い) |
+| `train.py` | `--greedy-dest`。あわせて**エントロピー賞与を op ヘッドへ移す** (`ENT_HEAD`)。目的地を固定したまま dest のエントロピーを上げても鎖を壊す方向に押すだけ |
+| `train.py` | `--max-minutes` (Kaggle の時間箱)、`--shuffle-adv` (advantage を無作為に入れ替える対照。critic・KL・比率の分布は無傷) |
+| `act2.py` / `play2.py` | `--eps` (目的地) / `--eps-op` (到着時の作業) — 4d の測定ノブ。学習には使わない |
+
+**検証の作法**: `SP_DEBUG_LP=1` を付けると初回更新の `|r−1|` が出る。**0 でなければ log-prob の帳尻が壊れている**。
+`--greedy-dest` では `max|dlogp|` は非ゼロになる (合計 logp に貪欲化した dest の項が含まれるため) が、
+**PPO が使う決定単位の `|r−1|` は 0 でなければならない**。実測 0.0000 を確認済み。
+
+**ローカル実行** (Mac MPS で 143 s/iter、更新が 114s を占める):
+
+```
+SP_DEBUG_LP=1 .venv/bin/python rl/sp/train.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/gd_smoke.pt \
+  --tapes tmp/rl/tapes_top.pkl --tape-frac 0.25 --workers 2 --games 4 --T 24 --iters 1 --greedy-dest   # 煙試験
+caffeinate -i .venv/bin/python rl/sp/train.py --init tmp/rl/bc5_ep3.pt --out tmp/rl/gd.pt \
+  --tapes tmp/rl/tapes_top.pkl --tape-frac 0.25 --workers 10 --games 48 --T 96 --iters 60 --greedy-dest
+```
+
+**Kaggle 実行** (`rl/kaggle18/run_gd.py`、kernel `mmn0222/kaggriculture-ppo-greedy-dest`):
+base (SP3 と同じレシピ) と gd (`--greedy-dest`) の 2 本を順に 60 iter / 各 150 分上限 → 全 `_itK.pt` を対 v41 32 戦 → `eval.txt`。
+
+```
+.venv/bin/kaggle kernels push -p rl/kaggle18
+.venv/bin/kaggle kernels status mmn0222/kaggriculture-ppo-greedy-dest
+.venv/bin/kaggle kernels output mmn0222/kaggriculture-ppo-greedy-dest -p tmp/kaggle_out_gd --force
+```
+
+**続きを回す**: 出力を dataset にして `kernel-metadata.json` の `dataset_sources` に足すと、
+`ppo_base.pt.state` / `ppo_gd.pt.state` を見つけて `--resume` する (run_sp4 と同じ形)。
+
+**判定**: `eval.txt` の対 v41 own と、`ppo_*.pt.log` の `vsTAPE window` / `vsT window`。
+**基準は bc5_ep3 の own 63.1k (貪欲)**。前 3 走はここから it39〜50 で 10k 帯まで崩れた。
+gd が崩れずに 63k を超えれば、探索設計の入れ替えが効いたことになる。
+
+**別 PC で再開するとき** (この節だけで足りる):
+
+```
+git pull
+# 冒頭「環境の再構築」で venv + kagsim をビルド
+kaggle datasets download mmn0222/kaggriculture-rl-majkel0917 -p /tmp/ds --force   # ckpt/bc5_ep3.pt
+kaggle datasets download mmn0222/kaggriculture-rl-majkel0916 -f tapes/tapes_top.pkl -p tmp/rl --force
+mkdir -p tmp/rl && cp /tmp/ds/ckpt/bc5_ep3.pt tmp/rl/
+.venv/bin/python rl/play2.py tmp/rl/bc5_ep3.pt --games 32     # own 63.1k / margin −71.5k が出れば環境 OK
+```
+
+**コードを Kaggle 側へ反映**するのを忘れないこと (カーネルは dataset のコードを使う):
+
+```
+rm -rf tmp/kaggle_code && mkdir -p tmp/kaggle_code/sp
+cp rl/*.py tmp/kaggle_code/ && cp rl/sp/*.py tmp/kaggle_code/sp/
+echo '{"title":"kaggriculture-rl-code","id":"mmn0222/kaggriculture-rl-code","licenses":[{"name":"CC0-1.0"}]}' > tmp/kaggle_code/dataset-metadata.json
+.venv/bin/kaggle datasets version -p tmp/kaggle_code -r zip -m "msg"
+```
+
+**罠**: `bc7` dataset にも古い `code/rl/sp/train.py` が同居している。`run_gd.py` は
+「`greedy_dest` を含む `sp/train.py`」を探して正しい方を選ぶので、**新機能を足したら目印の文字列も更新すること**。
+
+**次に効く手が尽きたら**: 探索を重み空間へ (1 局につき重みを 1 回だけ揺らす) か、階層化 (実行層を決定的に固定し
+マクロ決定だけ学ぶ)。`tracks/transformer.md` 9 節 4。
 
 ## C++ 観測エンコーダ
 

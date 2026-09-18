@@ -13,6 +13,9 @@ from policy_batch import act_batch, HEADS
 
 QTY_OPS = lambda op: ((op >= 16) & (op <= 27)) | ((op >= 29) & (op <= 40))
 
+ENT_HEAD = "dest"  # --greedy-dest のときは "op": エントロピー賞与は実際に探索しているヘッドに掛ける
+                   # (目的地を貪欲に固定したまま dest のエントロピーを上げても、鎖を壊す方向に押すだけ)
+
 
 def dists_batch(model, bt, temp):
     """Full log-distributions for every decision head (for analytic KL) plus per-decision log-probs [B,69], dest entropy [B], value [B]."""
@@ -26,7 +29,8 @@ def dists_batch(model, bt, temp):
     lp = [g(dl, bt["dest"]) * decide, g(opl, bt["op"]) * at, g(qtl, bt["qty"]) * isq]; base = 0
     for k, n in (("sell", 9), ("buyp", 2), ("seed", 5), ("anim", 3)): lp.append(g(ld[k], bt["mkt"][:, base:base + n])); base += n
     for k in ("hire", "land"): lp.append(g(ld[k], bt["mkt"][:, base]).unsqueeze(-1)); base += 1
-    ent = (-(dl.exp() * dl.clamp(min=-30)).sum(-1) * decide).sum(-1) / decide.sum(-1).clamp(min=1)
+    if ENT_HEAD == "op": ent = (-(opl.exp() * opl.clamp(min=-30)).sum(-1) * at).sum(-1) / at.sum(-1).clamp(min=1)
+    else: ent = (-(dl.exp() * dl.clamp(min=-30)).sum(-1) * decide).sum(-1) / decide.sum(-1).clamp(min=1)
     return ld, torch.cat(lp, -1), ent, mk["value"]
 
 
@@ -57,7 +61,12 @@ def main():
     ap.add_argument("--tapes", default="tmp/rl/tapes.pkl"); ap.add_argument("--tape-frac", type=float, default=0.5, help="fraction of games against a recorded real opponent (free, grounded)")
     ap.add_argument("--teacher-frac", type=float, default=0.3); ap.add_argument("--promote", type=float, default=0.53); ap.add_argument("--promote-min", type=int, default=150)
     ap.add_argument("--seed0", type=int, default=100000); ap.add_argument("--dev", default="mps")
-    a = ap.parse_args(); dev = torch.device(a.dev); torch.manual_seed(0)
+    ap.add_argument("--max-minutes", type=float, default=0, help="stop cleanly after this wall-clock budget (Kaggle kernels lose their output at the 12 h cap)")
+    ap.add_argument("--greedy-dest", action="store_true", help="目的地を貪欲に固定し、探索を作業・数量・市場ヘッドに限る (4d: 目的地ノイズが損失の 85%%)")
+    ap.add_argument("--shuffle-adv", action="store_true", help="対照実験: advantage を無作為に入れ替え、(state,action) との対応だけを壊す。critic (ret_f)・KL・比率の分布は無傷")
+    a = ap.parse_args(); dev = torch.device(a.dev); torch.manual_seed(0); np.random.seed(0)  # minibatch 順まで固定 (arm 間の比較用)
+    globals()["ENT_HEAD"] = "op" if a.greedy_dest else "dest"
+    shuf_rng = np.random.default_rng(12345)  # --shuffle-adv 専用。role 抽選の rng を動かさない
     n_upd = 0
     model = Policy2().to(dev); print("init:", model.load_state_dict(torch.load(a.init, map_location=dev), strict=False), flush=True)
     teacher = copy.deepcopy(model).eval(); opt = torch.optim.Adam(model.parameters(), lr=a.lr)
@@ -80,8 +89,11 @@ def main():
     prev = np.zeros((n, MAX_UNITS, 2), dtype=np.int16); prev[..., 0] = 100; prev[..., 1] = 44
     keys_obs = ("tiles", "units", "items", "glob")
     log = open(a.out + ".log", "a")
+    started_wall = time.time()
     try:
       for it in range(it0, a.iters):
+          if a.max_minutes and time.time() - started_wall > a.max_minutes * 60:
+              print(f"wall-clock budget reached at iter {it}", flush=True); break
           t0 = time.time(); model.eval()
           l_slots, t_slots = slot_sets(); L = len(l_slots)
           store = {k: np.zeros((a.T, L, *A[k].shape[1:]), dtype=A[k].dtype) for k in keys_obs}
@@ -95,8 +107,8 @@ def main():
               for k in keys_obs: store[k][t] = A[k][l_slots]
               store["prev"][t] = prev[l_slots]
               ti = time.perf_counter()
-              out = act_batch(model, dev, A, l_slots, prev, temp=a.temp)
-              if len(t_slots): out_t = act_batch(teacher, dev, A, t_slots, prev, temp=a.temp)
+              out = act_batch(model, dev, A, l_slots, prev, temp=a.temp, greedy_dest=a.greedy_dest)
+              if len(t_slots): out_t = act_batch(teacher, dev, A, t_slots, prev, temp=a.temp, greedy_dest=a.greedy_dest)
               t_inf += time.perf_counter() - ti
               for k in ("dmask", "omask", "at_dest", "present", "decide", "dest", "op", "qty", "mkt", "logp", "logp_h", "lp_dec", "value"): store[k][t] = out[k]
               prev[l_slots, :, 0] = np.where(out["present"], out["dest"], 100); prev[l_slots, :, 1] = np.where(out["at_dest"], out["op"], 44)
@@ -137,6 +149,7 @@ def main():
               delta = store["reward"][t] + a.gamma * nv * nd - store["value"][t]; last = delta + a.gamma * a.lam * nd * last; adv[t] = last
           ret = adv + store["value"]; N = a.T * L
           flat = {k: v.reshape(N, *v.shape[2:]) for k, v in store.items()}; adv_f = ((adv - adv.mean()) / (adv.std() + 1e-8)).reshape(N); ret_f = ret.reshape(N)
+          if a.shuffle_adv: adv_f = adv_f[shuf_rng.permutation(N)]
           if os.environ.get("SP_DEBUG_LP"):
               with torch.no_grad():
                   for t in (0, 1, a.T // 2, a.T - 1):

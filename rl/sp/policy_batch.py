@@ -21,9 +21,12 @@ def _sample(logits, greedy, gen):
 
 
 @torch.no_grad()
-def act_batch(model, dev, A, slots, prev, temp=1.0, greedy=False):
+def act_batch(model, dev, A, slots, prev, temp=1.0, greedy=False, greedy_dest=False):
     """A = VecEnv buffers, slots = np.array of slot indices handled by this model. prev: int16 [n_slots, MAX_UNITS, 2] (previous dest/op per slot).
-    Writes act_dest/act_op/act_qty/act_mkt for those slots. Returns dict of numpy arrays aligned with `slots` for PPO storage."""
+    Writes act_dest/act_op/act_qty/act_mkt for those slots. Returns dict of numpy arrays aligned with `slots` for PPO storage.
+    greedy_dest: 目的地だけ貪欲に固定し、探索を作業・数量・市場ヘッドに限る。log-prob を 0 にするので PPO 側は
+    `live = (old != 0)` で自動的に除外される (committed と同じ扱い)。得点は目的地ノイズに (1-eps)^7.6 で落ちる
+    ので、per-step の目的地サンプリングは探索の代償が大きすぎる (experiments.md の 4d 行)。"""
     S = len(slots)
     tiles = torch.from_numpy(A["tiles"][slots]).to(dev); units = torch.from_numpy(A["units"][slots]).to(dev); items = torch.from_numpy(A["items"][slots]).to(dev); glob = torch.from_numpy(A["glob"][slots]).to(dev)
     prev_t = torch.from_numpy(prev[slots]).to(dev)
@@ -53,9 +56,10 @@ def act_batch(model, dev, A, slots, prev, temp=1.0, greedy=False):
         ok |= ~ok.any(1, keepdims=True) & prod_np[:, i]  # every productive candidate claimed: ignore claims
         ok |= ~ok.any(1, keepdims=True)
         lg = np.where(ok, top_lg[:, i], -1e9); lg = lg - lg.max(1, keepdims=True); p = np.exp(lg); p /= p.sum(1, keepdims=True)
-        if greedy: j = p.argmax(1)
+        if greedy or greedy_dest: j = p.argmax(1)
         else: j = (p.cumsum(1) > rng.random((S, 1))).argmax(1)
-        dest_np[:, i] = np.where(committed[:, i], prev_np[:, i, 0], cand[np.arange(S), j]); lp_dest[:, i] = np.where(committed[:, i], 0.0, np.log(p[np.arange(S), j] + 1e-12))
+        dest_np[:, i] = np.where(committed[:, i], prev_np[:, i, 0], cand[np.arange(S), j])
+        lp_dest[:, i] = 0.0 if greedy_dest else np.where(committed[:, i], 0.0, np.log(p[np.arange(S), j] + 1e-12))
         np.put_along_axis(dmask[:, i], cand, ok, 1)
         claim = present_np[:, i] & ~shed[dest_np[:, i]]; claimed[np.arange(S)[claim], dest_np[claim, i]] = True
     decide = present_np & ~committed

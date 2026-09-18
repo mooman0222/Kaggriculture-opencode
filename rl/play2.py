@@ -9,12 +9,12 @@ from act2 import act_policy2
 
 
 class BCAgent:
-    def __init__(self, path, d=128, layers=3, dev="cpu", temperature=0.0):
-        self.dev = torch.device(dev); self.model = Policy(d=d, layers=layers).to(self.dev); self.model.load_state_dict(torch.load(path, map_location=self.dev), strict=False); self.model.eval(); self.temp = temperature
+    def __init__(self, path, d=128, layers=3, dev="cpu", temperature=0.0, eps=0.0, eps_op=None, seed=0):
+        self.dev = torch.device(dev); self.model = Policy(d=d, layers=layers).to(self.dev); self.model.load_state_dict(torch.load(path, map_location=self.dev), strict=False); self.model.eval(); self.temp = temperature; self.eps = eps; self.eps_op = eps_op; self.rng = np.random.RandomState(seed)
 
     def act(self, obs, seat):
         if int(obs["step"]) == 0: self.state = {}
-        return act_policy2(self.model, obs, seat, self.dev, self.temp, state=self.__dict__.setdefault("state", {}))[0]
+        return act_policy2(self.model, obs, seat, self.dev, self.temp, rng=self.rng, state=self.__dict__.setdefault("state", {}), eps=self.eps, eps_op=self.eps_op)[0]
 
     def _act_v1(self, obs, seat):
         f = encode(obs, seat); m = legal_ops(obs, seat)
@@ -39,8 +39,8 @@ def load_py(p):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("ckpt"); ap.add_argument("--games", type=int, default=8); ap.add_argument("--vs", default="third_party/public_agents/v41/main.py")
-    ap.add_argument("--seed0", type=int, default=5000); ap.add_argument("--debug", action="store_true"); ap.add_argument("--opening", type=int, default=0, help="この step までは agents/e058 を使う"); ap.add_argument("--d", type=int, default=128); ap.add_argument("--layers", type=int, default=3); ap.add_argument("--temp", type=float, default=0.0)
-    a = ap.parse_args(); agent = BCAgent(a.ckpt, a.d, a.layers, temperature=a.temp); opp = load_py(a.vs); res = []; t0 = time.time(); tmax = 0
+    ap.add_argument("--seed0", type=int, default=5000); ap.add_argument("--debug", action="store_true"); ap.add_argument("--opening", type=int, default=0, help="この step までは agents/e058 を使う"); ap.add_argument("--d", type=int, default=128); ap.add_argument("--layers", type=int, default=3); ap.add_argument("--temp", type=float, default=0.0); ap.add_argument("--eps", type=float, default=0.0, help="決定のこの割合を合法手の一様乱択に差し替える (4d)"); ap.add_argument("--eps-op", type=float, default=None, help="到着時の作業だけの eps (既定は --eps と同じ)"); ap.add_argument("--noise-seed", type=int, default=0)
+    a = ap.parse_args(); agent = BCAgent(a.ckpt, a.d, a.layers, temperature=a.temp, eps=a.eps, eps_op=a.eps_op, seed=a.noise_seed); opp = load_py(a.vs); res = []; t0 = time.time(); tmax = 0
     e058 = load_py("agents/e058/main.py") if a.opening else None
     for g_i in range(a.games):
         seed = a.seed0 + g_i // 2; seat = g_i % 2
