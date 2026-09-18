@@ -6,12 +6,11 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
 
 ## 明日やること (2026-09-17 夜に中断)
 
-1. **夜間 Kaggle の結果を取る**: `kaggle kernels output mmn0222/kaggriculture-bc22-policy3 -p tmp/kaggle_out_bc22 --force` →
+1. ~~夜間 Kaggle bc22~~ **済**: bc22 は bc20 の再現 (margin −21.0k、t=1.39 で区別不能)。64 戦の順位は `refs/transformer_policy.md` 1 節。
+1b. **夜間 Kaggle の結果を取る (手順)**: `kaggle kernels output mmn0222/kaggriculture-bc22-policy3 -p tmp/kaggle_out_bc22 --force` →
    `eval.txt` に bc22 (Majkel 854 局・初期値なし 4 epoch) の各 epoch と bc15/bc18/bc20_ep3 の**対 v41 64 戦**。
    ねらいは (a) 09-17 の結論がすべて 32 戦 SE ±3.1k に埋もれている順位を 64 戦で確定させる、(b) 別ハードで bc20 (92.1k) が再現するか。
-2. **ハイブリッド実装**: v46 シャシー (`agents/e066/`) の上に Transformer の売りヘッドを**追加のみ**で載せる。
-   制約は `.opencode/knowledge/refs/chassis_market_anatomy.md` を**必ず先に読む** (全面差し替えは在庫の二重売りを起こす、スロット 0 は契約、終局は 9 本 SELL 固定)。
-   形は `agents/e066/main.py` の `_sell` と同じ兄弟層。重みは numpy 版 (`rl/export_agent.py` → `np_policy3.py`) で載せる。torch は使えない。
+2. ~~ハイブリッド実装~~ **棄却済 (09-18)**。伸びしろが対 v46 で +$9/局しかない。`refs/transformer_policy.md` 5 節。
 3. **E066 の実戦結果を見る** (09-17 提出、ref は `kaggle competitions submissions kaggriculture`)。
 4. 保留: 市場バケツの丸め修正 (`features.bucket()` の同点が下振れ。shard 作り直し = Majkel 854 局の再取得 2.4 時間が前提、`rl/README.md`「ラベル監査」節)。
 
@@ -22,7 +21,11 @@ Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」が�
   ただし **E066 vs 素の v46 は 19W13L +102** — ライブ層の価値は v46 が同じ着想 (same-turn sale race / sale timing) を取り込んで消えた。
   **今後の差別化は Transformer 売り層のみ**。公開シャシーの新版確認は `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`、
   取り出し手順は `third_party/public_agents/NOTICE.md` 末尾。
-- 学習側の現在地と打ち止めになった手は `rl/README.md`「Policy3」節。最良は bc15_ep3 95.4k / bc18_ep3 −16.9k (対 v41 32 戦、すべて SE 内)。
+- **学習方策 (Transformer) の知見は `.opencode/knowledge/refs/transformer_policy.md` に集約**。手順書は `rl/README.md`。
+  対 v41 64 戦の margin で bc15_ep3 −15.4k / bc18_ep3 −17.1k (両者 t=0.91 で区別不能)。提出系との差は約 20k。
+  **判定は margin で行う (own では順位がつかない)**、epoch は 4 が上限、教師は Majkel のみ、初期値は混合 1,200 局。
+- **ハイブリッド (テープ + Transformer 売り層) は 09-18 に棄却**: 実装前に測った伸びしろが対 v46 で +$9/局 (対 v43 なら +$1,275)。
+  v46 が畜産物の売り時を作り込んだため。測定法と検証は `refs/transformer_policy.md` 5 節。
 
 ## 旧・現在地 (2026-09-15)
 
