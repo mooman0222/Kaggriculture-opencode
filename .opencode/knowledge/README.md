@@ -22,7 +22,8 @@
 | `refs/competition.md` | コンペの評価方式・期限・提出枠 |
 | `refs/chassis_market_anatomy.md` | 公開シャシーの市場処理 25 層の解剖。**外部から手を入れる前に必読** |
 | `refs/chassis_upgrade_playbook.md` | 新版が出たときの手順 (検出 → sha256 照合 → 載せ替え → 測る、1.5 時間) |
-| `refs/top-survey-2026-09-02.md` / `refs/top-survey-2026-09-09.md` | 上位系統の調査 |
+| `refs/top-survey-2026-09-18.md` | **上位系統の調査 (最新)**。1 位も v46 シャシー。差は全部ライブ層。市場層の数値比較と開幕移植の失敗 |
+| `refs/top-survey-2026-09-02.md` / `refs/top-survey-2026-09-09.md` | 同・過去版 |
 
 ## ログ — 追記専用。上書きしない
 
