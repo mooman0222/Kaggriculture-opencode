@@ -2,7 +2,9 @@
 
 | dir | 出典 (Kaggle) | 公開日 | 役割 |
 |---|---|---|---|
-| **v46** | ahmedberatozer/kaggriculture-v46-first-turn-microstructure-and-s | 2026-09-16 | **E066 の土台 (現行)**。v43 に 16W0L +2,191 |
+| v48 | ahmedberatozer/kaggriculture-v48-clear-the-queue | 2026-09-17 22:09 | **クローン戦では v46 と同一挙動 (avg +0)**。新層が同士討ちで発火しない |
+| v47 | ahmedberatozer/kaggriculture-v47-reactive-market-coordination | 2026-09-17 15:44 | 同上 |
+| **v46** | ahmedberatozer/kaggriculture-v46-first-turn-microstructure-and-s | 2026-09-16 | **E066 の土台 (現行)**。v43 に 16W0L +2,191。**現時点の最強公開物** |
 | v45 | ahmedberatozer/kaggriculture-v45-first-turn-wheat-round-trip | 2026-09-15 | v43 に 16W0L +2,294、v46 に 1W15L |
 | v44 | ahmedberatozer/kaggriculture-v44-winning-the-same-turn-sale-race | 2026-09-15 | v43 に 15W1L +1,492 |
 | v43 | (E063〜E065 の土台) | 2026-09-14 | `agents/e065/base.py` とバイト一致 |
@@ -27,3 +29,12 @@ ns = {"hashlib": hashlib}; exec(compile(src.split("MAIN = WORKDIR")[0], "<blob>"
 assert hashlib.sha256(ns["SOURCE_BYTES"]).hexdigest() == ns["EXPECTED_MAIN_SHA256"]
 ```
 新版の確認: `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`
+
+## 棚卸し (2026-09-18)
+
+- **yhay81 氏は 09-13 の `shop-router-0913` (4 票) を最後に Kaggriculture から離脱**した (以後は ARC Prize)。
+  `shop-router-0909` は 132 票あった主流だったので、ahmedberatozer 系への移行は選択ではなく必然。
+- **更新を続けているのは ahmedberatozer 氏だけ**。09-15〜17 の 3 日で v44 → v48。**1 日 1〜2 版のペースなので毎日見る**。
+- 紛らわしい再掲に注意: flexonafft「Multi-Route Farming Agent」(93 票) は **v45 とバイト一致**。
+  取り込む前に `sha256` を既存の `third_party/public_agents/*/main.py` と突き合わせること。
+- 他候補の実力 (対 v46 16 戦): aurax7 v7 −204 (3W13L)、salemali7「2900+」−33,291 (0W16L)。**v46 を超える公開物はない**。
