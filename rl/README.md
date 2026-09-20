@@ -262,3 +262,26 @@ echo '{"title":"kaggriculture-rl-code","id":"mmn0222/kaggriculture-rl-code","lic
 - Kaggle datasets (git 管理外の重み・shard): `kaggle datasets download mmn0222/kaggriculture-rl-bc7 -p /tmp/kaggle_ds --force` → 解凍 → `data/bc7data/` を `tmp/rl/bc7data/` へ (3,506 局)。
   bc6 系が必要なら `mmn0222/kaggriculture-rl-bc6` (bc6data 2,492 + `ckpt/bc5_ep3.pt` + `ckpt/bc6_ep0.pt`)。
 - torch はシステム側 (`/usr/bin/python3`、2.13+cu130) + `PYTHONPATH=<repo>/.venv/lib/python3.14/site-packages` (kagsim 等)。venv を作り直す場合は先頭の手順。
+
+## GCP T4 実行記録 (2026-09-20〜、ブランチ `rl/greedy-dest-ppo`)
+
+VM: n1-standard-4 + T4スポット。DLVM (Ubuntu 24.04, CUDA 12.9) + `python3 -m venv --system-site-packages .venv`。
+ユーザー操作: GCP設定・VM・停止/削除。コード・コマンドはエージェント側で用意する。
+
+### 済み (VM 上のパスは永続ディスク。VM削除で消える)
+| # | 内容 | 結果 |
+|---|---|---|
+| T1 | bc15 再現 (`train_bc3 --data /tmp/kaggle_ds/data/majkel_all/*.npz --init ckpt/bc9k_ep3 --epochs 4`) | margin **−15,608** (基準 −15,382 と区別不能) = 環境正常 |
+| T2 | fresh 再学習 (`/tmp/rl/majkel0920` 636局=旧400+新236、バケツ修正つき) → bcFresh_ep3 | margin **−55,350・0勝 = 崩壊** |
+| T3 | 旧のみ再学習 (`/tmp/rl/maj_old` 400局) → bcOld_ep3 | 実行待ち (下記) |
+
+### 次 (opencode on VM が回す順)
+1. `play3.py /tmp/rl/bcOld_ep3.pt --games 32 --sell-rule-c` — **−15k復帰なら新提出データが毒** (捨てる)。崩壊継続ならバケツ修正 (982e387) を疑い revert して再試行
+2. Majkel提出一覧の取得 (T2時の未回答): team_id 16718819 の全提出 ID・スコア・説明。新提出 56332038 の正体特定用
+3. 判定基準 (tracks/transformer.md §3): margin で判定 (own不可)。64戦で差4k未満は区別不能。val精度は判断材料にしない
+4. 有効な次弾: Majkel純度の維持＋定点追加 (日50〜140局)。他チーム混合は毒 (49.6k崩壊の前例)。容量d256再評価は2,000局超で検討
+
+### 注意
+- 教師は Majkel のみ。混合は初期値 (bc9k) に限定
+- epoch 上限 4 (初期値の有無によらず)。val と閉ループ逆相関に注意
+- 学習・評価コマンドの定型は tracks/transformer.md §2 を見ること
