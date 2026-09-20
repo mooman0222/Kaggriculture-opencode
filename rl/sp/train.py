@@ -53,6 +53,8 @@ def main():
     ap.add_argument("--init", required=True); ap.add_argument("--out", required=True); ap.add_argument("--resume", action="store_true")
     ap.add_argument("--workers", type=int, default=10); ap.add_argument("--games", type=int, default=48); ap.add_argument("--T", type=int, default=64); ap.add_argument("--iters", type=int, default=1000000)
     ap.add_argument("--lr", type=float, default=1e-5); ap.add_argument("--warmup", type=int, default=200, help="optimizer steps of linear lr warm-up (Adam's first steps move every weight by ~lr)"); ap.add_argument("--epochs", type=int, default=1); ap.add_argument("--minibatches", type=int, default=4); ap.add_argument("--mb", type=int, default=768, help="samples per forward chunk (MPS memory); gradients accumulate to --minibatches optimizer steps per epoch")
+    ap.add_argument("--vlr", type=float, default=0.0, help="value head 専用 lr (0 なら --lr と同じ)。value head は乱数初期化なので policy を守る小さい lr では定数に留まる (09-19 診断)")
+    ap.add_argument("--vwarmup", type=int, default=20, help="value head lr の線形ウォームアップ step 数 (policy は --warmup)")
     ap.add_argument("--gamma", type=float, default=0.997); ap.add_argument("--lam", type=float, default=0.95); ap.add_argument("--clip", type=float, default=0.2)
     ap.add_argument("--ent", type=float, default=0.002); ap.add_argument("--vf", type=float, default=0.5); ap.add_argument("--kl", type=float, default=0.005, help="analytic forward KL(teacher||student) coefficient")
     ap.add_argument("--critic-warmup", type=int, default=60, help="optimizer steps with pg/entropy off (value + KL only): avoids the restart shock of an untrained critic")
@@ -69,7 +71,11 @@ def main():
     shuf_rng = np.random.default_rng(12345)  # --shuffle-adv 専用。role 抽選の rng を動かさない
     n_upd = 0
     model = Policy2().to(dev); print("init:", model.load_state_dict(torch.load(a.init, map_location=dev), strict=False), flush=True)
-    teacher = copy.deepcopy(model).eval(); opt = torch.optim.Adam(model.parameters(), lr=a.lr)
+    teacher = copy.deepcopy(model).eval()
+    vlr = a.vlr if a.vlr > 0 else a.lr
+    vparams = list(model.value_head.parameters()); vids = {id(p) for p in vparams}
+    opt = torch.optim.Adam([{"params": [p for p in model.parameters() if id(p) not in vids], "lr": a.lr}, {"params": vparams, "lr": vlr}])
+    print(f"optimizer: policy lr {a.lr} / value lr {vlr}", flush=True)
     state_path = a.out + ".state"; it0 = 0; win_window = collections.deque(maxlen=400); tape_window = collections.deque(maxlen=400); promotions = 0; games_done = 0; seed_off = 0
     if a.resume and os.path.exists(state_path):
         st = torch.load(state_path, map_location=dev); model.load_state_dict(st["model"]); teacher.load_state_dict(st["teacher"]); opt.load_state_dict(st["opt"])
@@ -173,7 +179,7 @@ def main():
                       warm = n_upd < a.critic_warmup; loss = ((0.0 if warm else pg) + a.vf * vl - (0.0 if warm else a.ent) * ent.mean() + a.kl * kl) * (len(idx) / mb)
                       loss.backward(); acc += np.array([pg.item(), vl.item(), ent.mean().item(), (((ratio - 1).abs() * live).sum() / live.sum().clamp(min=1)).item(), kl.item()]) * (len(idx) / mb)
                   n_upd += 1
-                  for gp in opt.param_groups: gp["lr"] = a.lr * min(1.0, n_upd / max(1, a.warmup))
+                  for gp, base, wu in zip(opt.param_groups, (a.lr, vlr), (a.warmup, a.vwarmup)): gp["lr"] = base * min(1.0, n_upd / max(1, wu))
                   torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5); opt.step(); stats.append(tuple(acc))
                   if os.environ.get("SP_DEBUG_LP") and len(stats) <= 4: print(f"  minibatch {len(stats)}: |r-1| {stats[-1][3]:.4f} kl {stats[-1][4]:.4f}", flush=True)
           s = np.mean(stats, 0); wr = float(np.mean(win_window)) if win_window else float("nan")

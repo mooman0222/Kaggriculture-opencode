@@ -25,7 +25,7 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 `act2.py` (推論: ユニット逐次に目的タイルを選び claim、到着時に作業)、`rollout2.py` (ベクトル化自己対戦、logp を保存)、`np_policy2.py` (numpy 推論)。
 旧: `model.py` / `train_bc.py` / `bc_play.py` / `rollout.py` / `ppo.py` (v1: 方向を直接予測、崩壊した)。
 
-## Policy3: 一段 option 方策 (現行本線) — 現在地 2026-09-18
+## Policy3: 一段 option 方策 (BC は有効・PPO は凍結) — 現在地 2026-09-19
 
 - `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
   `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
@@ -44,7 +44,7 @@ PASS ラベルのバグ、作物構成の診断、市場 pos_w、ラベルの既
 - **64 戦で margin 差 4k 未満は区別できない。** 同レシピの再現でも 3.3k ずれる。32 戦・16 戦の古い数字と直接比べない。
 - **epoch は 4 が上限**、**教師は Majkel のみ**、**初期値は混合 1,200 局 (bc9k) を使い増やさない**。
 
-### 次にすること (2026-09-18、優先順)
+### 次にすること (2026-09-19、PPO 凍結後、優先順)
 
 学習方策で残っている手は少ない。打ち止めの一覧は `tracks/transformer.md` の 3 節。
 
@@ -127,7 +127,7 @@ mkdir -p tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all tmp/rl/ && cp /tmp/kaggl
   続きは同カーネルを `kernel_sources` に足して再投入 (`sp4k.pt.state` を見つけて `--resume`)。結果取得 `kaggle kernels output mmn0222/kaggriculture-sp4-policy3-ppo -p tmp/kaggle_out_sp4 --force`。
   この PC での本走 (it2 まで) は暖機中で |r−1|=0、渇死 477→2347/iter (d0→d12 の成長分)。
 
-### ★ 2026-09-18: 目的地を貪欲に固定した PPO (`--greedy-dest`) — いまここ
+### 2026-09-18: 目的地を貪欲に固定した PPO (`--greedy-dest`) — 結果は棄却
 
 **なぜ**: 学習ゼロの測定 (`experiments.md` の 4d 行) で、得点が行動ノイズに対し **`own ≈ 63,072 × (1−ε)^10`** で落ちると分かった。
 内訳は **目的地ノイズが損失の 85%** (単独で `(1−ε)^7.6`、ε を倍にすると損も倍) に対し、**作業ノイズは飽和** (ε 0.05 → 0.10 で −15.2k → −16.6k)。
@@ -165,15 +165,43 @@ base (SP3 と同じレシピ) と gd (`--greedy-dest`) の 2 本を順に 60 ite
 .venv/bin/kaggle kernels output mmn0222/kaggriculture-ppo-greedy-dest -p tmp/kaggle_out_gd --force
 ```
 
-**続きを回す**: 出力を dataset にして `kernel-metadata.json` の `dataset_sources` に足すと、
+**再走する場合**: 出力を dataset にして `kernel-metadata.json` の `dataset_sources` に足すと、
 `ppo_base.pt.state` / `ppo_gd.pt.state` を見つけて `--resume` する (run_sp4 と同じ形)。
 
-**判定**: `eval.txt` の対 v41 own と、`ppo_*.pt.log` の `vsTAPE window` / `vsT window`。
-**基準は bc5_ep3 の own 63.1k (貪欲)**。前 3 走はここから it39〜50 で 10k 帯まで崩れた。
-gd が崩れずに 63k を超えれば、探索設計の入れ替えが効いたことになる。
+**結果 (09-18 完走)**: base / gd とも teacher 昇格後に崩壊し、**棄却** (gd の最終 own は base より低い)。
+数値と解釈は `experiments.md` と `tracks/transformer.md` 4 節・9 節 4。advantage シャッフル対照も
+完走し、**shuf の方が劣化が遅い = 信号に従うことが崩壊を悪化させる**と判明 (`rl/kaggle19/run_shuf.py`、
+kernel `mmn0222/kaggriculture-ppo-adv-shuf`。ログは `tmp/kaggle_out_ctl/` と `tmp/kaggle_out_shuf/`)。
+4b/4c (`rl/kaggle20/run_4b4c.py`、kernel `mmn0222/kaggriculture-ppo-nopromo-ent0`) も完走:
+**4b 部分的 (final own 24.3k)、4c 無効 (17.3k vs base 17.4k)**。ログは `tmp/kaggle_out_4b4c/`。
+残るのは pg 本体 (advantage / 信用割当) — 09-19 の診断で **critic が定数**と判明 (下記)。
+
+### 2026-09-19: advantage/critic 診断 (`rl/diag_adv.py`) と PPO 凍結
+
+学習なしで「PPO が使う信号」の情報量を測る。8 窓 (T=96) 回すと 8 窓目に終局が入る (720 手周期)。
+局所実行は venv に torch が無いのでシステム torch と venv の kagsim を混ぜる:
+
+```
+PYTHONPATH=.venv/lib/python3.14/site-packages /usr/bin/python3 rl/diag_adv.py \
+  --ckpt tmp/rl/bc5_ep3.pt --out tmp/rl/diag_x.json --workers 4 --games 120 --dev cuda
+```
+
+結果: 崩壊後 ckpt は V が定数 (R²≈0、最終手の相関 0.13)、同じ特徴の焼き直しは R²_val 0.44〜0.58。
+解釈は `tracks/transformer.md` 5.5、数値は `experiments.md`。
+
+**処方 1 — value head 専用 lr** (`rl/kaggle21/run_vlr.py`、kernel `mmn0222/kaggriculture-ppo-vlr`):
+`--vlr 1e-3 --vwarmup 20` で critic の相関は 0.13 → **0.55** に改善したが、スケールが 10 分の 1 のまま
+(R²_mc 0.05) で崩壊は残った (final own 33.2k、基準 63.1k、プロモーション 0 回)。ログは `tmp/kaggle_out_vlr/`。
+
+**処方 2 — value head 事前学習** (`rl/vpretrain.py`、`rl/kaggle22/run_vpt.py`、
+kernel `mmn0222/kaggriculture-ppo-vpretrain`): 2000 step 事前学習 (R²_val 0.289、終局行 0.202) してから
+SP3 + `--vlr 1e-3` を回しても崩壊は同形 (final own 33,551、it25 46,564、昇格 0 回)。ログは `tmp/kaggle_out_vpt/`。
+
+**結論: critic の質を 3 水準 (定数 → corr 0.55 → R²0.29) 変えても崩壊は変わらないため PPO は凍結。**
+以降の学習系は BC (データ増量) のみ。コード dataset は vpretrain.py 入りで更新済み (md5 照合済み)。
 
 **bc5_ep3 (Policy2) を使うのは崩れた 3 走と揃えるため。`train3.py` / `policy_batch3.py` には未移植で、
-現行最良の bc18_ep3 (94k 帯) より 30k 下の古い方策である点に注意** — 理由・限界・移植の段取りは
+現行最良の bc18_ep3 (94k 帯) より 30k 下の古い方策である点に注意** — 理由・限界・移植の可否は
 `tracks/transformer.md` 9 節 4。
 
 **別 PC で再開するとき** (この節だけで足りる):
