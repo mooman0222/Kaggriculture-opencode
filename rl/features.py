@@ -32,7 +32,11 @@ MKT_BUCKETS = [0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96]
 
 def bucket(q, buckets):
     q = int(q)
-    return int(np.argmin([abs(q - b) for b in buckets]))
+    dists = [abs(q - b) for b in buckets]
+    best = min(dists)
+    # 同点は大きい方へ倒す (2026-09-17 監査: 小さい方への下振れが売り 55.8 個/局。
+    # 旧 shard と互換性なし。再取得時は extract の生数量保存と併せて使うこと)
+    return max(i for i, dv in enumerate(dists) if dv == best)
 
 
 def unbucket(k, buckets): return buckets[int(k)]
