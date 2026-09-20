@@ -1,0 +1,2 @@
+Based on "Kaggriculture V50 — Early Yarn Commit" by Ahmed Berat Ozer (ahmedberatozer/kaggriculture-v50-early-yarn-commit, Kaggle, 2026-09-19), Apache-2.0 (upstream attributions retained in base.py).
+Modifications (MMN0222): main.py adds live layers on top of the v50 agent: cash guard for upcoming tape purchases, clone-gated 6-turn sell lead, shed-pressure relief, idle-hand FERTILIZE/WATER/CARE, dawn overflow guard (h22+, market-side additive only). Base live entry resolved as last callable (_e343_agent; b.agent is the old entry). Farm tapes and production router unchanged.

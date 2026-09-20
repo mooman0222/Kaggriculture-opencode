@@ -1,0 +1,2 @@
+Verbatim public notebook "Countering the Big 3 Meta" by haideptry (Kaggle, 2026-09-20; derived from public V39 by Ahmed Berat Ozer plus v9 layers) in base.py, Apache-2.0 (upstream attributions retained in base.py).
+Modifications (MMN0222) in main.py: buy-mirror layer only (h22/h23, same-step SELL wash mirroring the tape's BUY_PRODUCT to neutralize buy-inflow overflow on empty-shed nights; WHEAT feed reserve; append-only; price>=2; 10-order cap safe). Tape SELLs, order, opening untouched.
