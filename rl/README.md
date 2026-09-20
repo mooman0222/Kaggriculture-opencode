@@ -322,3 +322,54 @@ VM: n1-standard-4 + T4スポット。DLVM (Ubuntu 24.04, CUDA 12.9) + `python3 -
 - 教師は Majkel のみ。混合は初期値 (bc9k) に限定
 - epoch 上限 4 (初期値の有無によらず)。val と閉ループ逆相関に注意
 - 学習・評価コマンドの定型は tracks/transformer.md §2 を見ること
+
+## 新VMでの1からの再現手順 (2026-09-20、GPU調達待ち用)
+
+前提: GPUつきUbuntu (DLVM推奨)。ブランチ `rl/greedy-dest-ppo` の本コミット以降
+(revert = `rl/features.py` の bucket が旧 `argmin` 版であること。確認:
+`grep -c argmin rl/features.py` → 1)。**同点→大のバケツ変更 (982e387) を再導入しないこと** (T4で毒確定)。
+
+1. リポジトリ: `git clone <repo> && git checkout rl/greedy-dest-ppo`
+2. 環境:
+   ```
+   python3 -m venv --system-site-packages .venv
+   .venv/bin/pip install -r requirements.txt
+   uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   # 約1分
+   .venv/bin/python -c "import kagsim; print(kagsim.Game(1).encode(0)['tiles'].shape)"  # (2,10,10,18)ならOK
+   ```
+3. Kaggle認証: `~/.kaggle/kaggle.json` を置く (600)。確認は手順5の提出一覧クエリ
+   (team_id 16718819 → 提出が2本出ればOK)。
+4. 既存データ (dataset `mmn0222/kaggriculture-rl-majkel0917`):
+   ```
+   kaggle datasets download mmn0222/kaggriculture-rl-majkel0917 -p /tmp/kaggle_ds --force && cd /tmp/kaggle_ds && unzip -o -q '*.zip'
+   mkdir -p /tmp/rl && cp -r /tmp/kaggle_ds/data/majkel_all /tmp/rl/ && cp /tmp/kaggle_ds/ckpt/*.pt /tmp/rl/
+   # → /tmp/rl/majkel_all/ 854局 + /tmp/rl/*.pt (bc9k_ep3.pt = 初期値、bc5_ep3.pt、bc15_ep3.pt)
+   ```
+5. 新規取得 (**旧コードで**。新規約13局/分、中断しても既存idは飛ばすので再実行で継続):
+   ```
+   .venv/bin/python rl/fetch_episodes.py --sub 56216119 --team Majkel1337 --out /tmp/rl/maj_revert --n 400
+   .venv/bin/python rl/fetch_episodes.py --sub 56332038 --team Majkel1337 --out /tmp/rl/maj_new --n 400
+   # 期待: maj_revert 400局 (listing変動で±数局)、maj_new 約250局 (歩留まり約6割)
+   ```
+   提出IDが変わっていたら取り直す: `kagglesdk` で `list_team_public_submissions(team_id=16718819)`。
+6. 健全性チェック (必須。新規shardが壊れていないことの確認):
+   `.venv/bin/python rl/fix_pass_labels.py` は**不要** (現行 `labels.py` は修正済みを直接出す)。
+   目安: PASSラベル約50/局、人参 PLANT 約67/局 (主)・約40/局 (新)。
+7. 学習レシピ (すべて `--init <ckpt>/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4`。所要はT4実績):
+   ```
+   .venv/bin/python rl/train_bc3.py --data '/tmp/rl/maj_revert/*.npz' --out /tmp/rl/bcX.pt --init /tmp/kaggle_ds/ckpt/bc9k_ep3.pt --epochs 4 --bs 128 --lr 2e-4
+   # 400局≈15分、647局≈23分、1,118局≈40分、247局≈10分
+   ```
+   結果の目安 (対v41、`--sell-rule-c`): 主400局 → margin −16k (32戦)。854局再現 → −15.6k (64戦)。
+8. 評価: `.venv/bin/python rl/play3.py /tmp/rl/bcX_ep3.pt --games 32 --sell-rule-c` (約5分。64戦は約10分)。
+   **判定は margin** (32戦 SE ±3.1k、64戦で差4k未満は区別不能)。**val精度は合否に使わない** (毒でも0.898が出る)。
+9. 長時間実行の罠: ターミナル断・ツールタイムアウトでプロセス群が殺される。
+   必ず切り離して起動し、ログで監視すること:
+   ```
+   setsid nohup .venv/bin/python rl/train_bc3.py ... > /tmp/train_x.log 2>&1 < /dev/null &
+   grep -E "^epoch" /tmp/train_x.log   # 監視
+   ```
+   学習は `<out>.state` + `--resume` で再開可。fetch/train の並列実行可 (fetchはCPU/API律速)。
+10. 禁止事項: epoch追加 (4上限)、初期値のデータ増量、他チーム混合、推論側の細工、PPO再開 —
+    いずれも `tracks/transformer.md` 4節で実測棄却済み。OP_WEIGHT 実験 (`OP_BOOST` 環境変数) も T8 で棄却。
+    `tracks/transformer.md` 9節の「生きている問い」が現在の有効手のすべて。
