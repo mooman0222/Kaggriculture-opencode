@@ -2,6 +2,7 @@
 
 | dir | 出典 (Kaggle) | 公開日 | 役割 |
 |---|---|---|---|
+| **v51** | ahmedberatozer/kaggriculture-v51-lean-flock | 2026-09-20 09:21 | 未評価 (09-20 取込、sha256 `c1e3590d…` 照合済み・再掲でなし)。live は末尾 `_e350_agent** (`m.agent` は旧 `_e342_agent` 別名。対戦評価は末尾 callable で解決すること)。自称 V50 比 paired +514 (羊一人手・トマト班スキップ+定数5点)。本線の載せ替え候補 |
 | **v50** | ahmedberatozer/kaggriculture-v50-early-yarn-commit | 2026-09-19 09:33 | **E072 の土台 (live は末尾 `_e343_agent**。`m.agent` は旧エントリなので末尾 callable で解決すること)。v49 に +353 (発火局のみ) |
 | **v49** | ahmedberatozer/kaggriculture-v49-funded-sale-timing-and-worker | 2026-09-19 08:00 | **E071 の土台**。v46 に 30W2L +3,587。Thomas Tschinkel 2945 Farm 経済層の後付け |
 | v48 | ahmedberatozer/kaggriculture-v48-clear-the-queue | 2026-09-17 22:09 | **クローン戦では v46 と同一挙動 (avg +0)**。新層が同士討ちで発火しない。なお v48 も末尾 `_PG_HOST` が live で `m.agent` と別物 |

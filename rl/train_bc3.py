@@ -67,6 +67,12 @@ def main():
     operations = training["dop"][training["dop"] >= 0]
     frequency = np.bincount(operations, minlength=model3.N_OPS).astype(np.float64) + 10
     weights = (frequency.mean() / frequency) ** 0.5
+    # OP_BOOST="PLANT_WHEAT:3,PLANT_CARROT:3": 実験用に特定opだけ追加ブースト (既定オフで完全一致)。
+    # 根拠: 空タイルで教師が小麦を植える場面の top-1 が同タイルWATER 69% (WATER 41.7% 対 WHEAT 3.3%)。
+    for spec in (os.environ.get("OP_BOOST") or "").split(","):
+        if ":" in spec:
+            name, mult = spec.split(":")
+            weights[model3.OP_INDEX[name.strip()]] *= float(mult)
     model3.OP_WEIGHT = torch.tensor(weights / weights.mean(), dtype=torch.float32)
     model3.PASS_IDLE_WEIGHT = args.pass_idle_weight
     model = Policy3(d=args.d, layers=args.layers).to(device)
