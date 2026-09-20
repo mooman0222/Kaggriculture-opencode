@@ -2,9 +2,11 @@
 
 | dir | 出典 (Kaggle) | 公開日 | 役割 |
 |---|---|---|---|
-| v48 | ahmedberatozer/kaggriculture-v48-clear-the-queue | 2026-09-17 22:09 | **クローン戦では v46 と同一挙動 (avg +0)**。新層が同士討ちで発火しない |
+| **v50** | ahmedberatozer/kaggriculture-v50-early-yarn-commit | 2026-09-19 09:33 | **E072 の土台 (live は末尾 `_e343_agent**。`m.agent` は旧エントリなので末尾 callable で解決すること)。v49 に +353 (発火局のみ) |
+| **v49** | ahmedberatozer/kaggriculture-v49-funded-sale-timing-and-worker | 2026-09-19 08:00 | **E071 の土台**。v46 に 30W2L +3,587。Thomas Tschinkel 2945 Farm 経済層の後付け |
+| v48 | ahmedberatozer/kaggriculture-v48-clear-the-queue | 2026-09-17 22:09 | **クローン戦では v46 と同一挙動 (avg +0)**。新層が同士討ちで発火しない。なお v48 も末尾 `_PG_HOST` が live で `m.agent` と別物 |
 | v47 | ahmedberatozer/kaggriculture-v47-reactive-market-coordination | 2026-09-17 15:44 | 同上 |
-| **v46** | ahmedberatozer/kaggriculture-v46-first-turn-microstructure-and-s | 2026-09-16 | **E066 の土台 (現行)**。v43 に 16W0L +2,191。**現時点の最強公開物** |
+| v46 | ahmedberatozer/kaggriculture-v46-first-turn-microstructure-and-s | 2026-09-16 | E066/E068/E070 の土台 (退役)。v43 に 16W0L +2,191 |
 | v45 | ahmedberatozer/kaggriculture-v45-first-turn-wheat-round-trip | 2026-09-15 | v43 に 16W0L +2,294、v46 に 1W15L |
 | v44 | ahmedberatozer/kaggriculture-v44-winning-the-same-turn-sale-race | 2026-09-15 | v43 に 15W1L +1,492 |
 | v43 | (E063〜E065 の土台) | 2026-09-14 | `agents/e065/base.py` とバイト一致 |
@@ -30,7 +32,9 @@ assert hashlib.sha256(ns["SOURCE_BYTES"]).hexdigest() == ns["EXPECTED_MAIN_SHA25
 ```
 新版の確認: `kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40`
 
-## 棚卸し (2026-09-18)
+## 棚卸し (2026-09-18、09-20 追記)
+
+- 09-20 新着: haideptry「Countering the Big 3 Meta」(V39+v9 層、09-20) が E072 に +1,458/+641・席差し替え +460 で **E076 として素のまま提出**。同作者「The 2950 Peak Farm」も +1,074/+413。v9 層の中身は RACE 予約 (step192〜)・COURIER・CARROT・HERD・0911 開幕・aurax7 日末守衛・Gluzdov 終端救済。実体は `agents/e076/main.py` (verbatim) と `agents/e075/base.py` (h2950)。NB 生データは `tmp/nb/haideptry-*/` (git 管理外、再取得可)
 
 - **yhay81 氏は 09-13 の `shop-router-0913` (4 票) を最後に Kaggriculture から離脱**した (以後は ARC Prize)。
   `shop-router-0909` は 132 票あった主流だったので、ahmedberatozer 系への移行は選択ではなく必然。
