@@ -4,34 +4,38 @@
 Bradley-Terry。**締切時点で「エラーの出ない最強 2 提出」がスロットにあることが全て** (有効なのは最新 2 提出、選べない)。
 時系列の経緯は `.opencode/knowledge/history.md`、実験の一次記録は `.opencode/knowledge/experiments.md`。
 
-## 方針と現在地 (2026-09-18)
+## 方針と現在地 (2026-09-23)
 
 **知見はここに書かない。方針別の `tracks/` にある。** 索引は `.opencode/knowledge/README.md`。
 
 | 方針 | 状態 | 現在地 | 資料 |
 |---|---|---|---|
-| **公開シャシー + 自前の市場層** | **本線** | 提出中 **E068** (v46 土台 + 夜明けガード) / E066 (LB 2698.7)。実戦 57% 勝率、**81% がミラー戦で 86% が \|margin\|<2,500 決着** | `tracks/chassis.md` |
-| 学習方策 (Transformer/Policy3) | 停滞 | 対 v41 64 戦 margin −15.4k。**提出系との差 20k、埋める道が立っていない** | `tracks/transformer.md` + `rl/README.md` |
+| **公開シャシー + 自前の市場層** | **本線** | 提出中 **E074** (09-23, herd2700 + YARN ルート修正) / E073。実測: e072 2562.3 / e073 2545.8 (team rank 453)、e074 評価中。**E074 は本路線初の held-out で生き残った改善** (7 ペア、+0.5k〜+4.1k/該当ペア) | `tracks/chassis.md` |
+| 学習方策 (Transformer/Policy3) | 停滞 | 対 v41 64 戦 margin −15.4k。**提出系との差 20k、埋める道が立っていない**。市場層 BC も閉ループで崩壊 (E074 期) | `tracks/transformer.md` + `rl/README.md` |
 | GA によるテープ進化 | 棄却 | 素のテープに 245 点負けた (E055 2698.8 vs E057 2453.9) | `tracks/ga.md` |
 | 自作プランナー / ルート外科 | 棄却 | 固定ルートは農場側の介入を一切受け付けない | `tracks/planner.md` |
 
-## 次にやること (2026-09-18)
+**最重要の方法論 (09-23 発見)**: ショップ列 = f(seed, day, **両者の空きタイル累計**)。1 手の農場行動変更で世界が丸ごと入れ替わる
+(±30-50k)。**農場行動を触る実験は必ず pinned shops (`kagsim.Game(seed,720,[8 shops])`) で行う**。詳細 `refs/world_draw.md`。
 
-1. **公開シャシーの新版を追う** — 最も費用対効果が高い (v43→v46 の載せ替えは作業 1 時間で E065 比 +1,386)。
-   **1 日 1〜2 版出るので毎日見る**。放置すると素の公開エージェントに負ける。手順 `refs/chassis_upgrade_playbook.md`。
-2. **E068 の実戦結果を見る** (09-18 提出)。1 局 +250 がそのまま効けば 2,700 帯を抜ける。
-3. **自前の層を持つ相手に勝てない問題** — 実戦の唯一の負け筋 (23 局 22% / −1,710)。`tracks/chassis.md` 6 節。
-4. **エンジン規則の残りの穴を探す** — 夜明けガードは `drop_inventories` から見つけた。`refs/engine_facts.md` × `sim/sim.hpp`。
+## 次にやること (2026-09-23)
+
+1. **E074 の実戦結果を見る** (09-23 提出、1 日後)。ルート修正は農場・市場を触らないため転移する可能性が高い。
+2. **非 YARN 49 ペアも同じ全 40 ルート掃引** — YARN では 7/15 ペアに実改善があった (V92 上書きの副作用)。
+   非 YARN は未掃引。手順: 1 世界で全ルートをスクリーニング → 上位 2 を held-out 5 世界 × 4 相手 × 両席で確認。
+3. **世界の引き直しを利用した検証の徹底** — 相手が変わると世界も変わる。pinned + 複数相手 + 両席の 3 点セット。
+4. **帯 (2700-2800) の変種の出所を探す** — 8 チームが同一ユニット行動 (1.00 一致)。公開 NB 約 30 種と不一致。新着 NB を毎日監視。
+5. **エンジン規則の残りの穴を探す** — `refs/engine_facts.md` × `sim/sim.hpp`。
 
 ## リポジトリ構成
 
 ```
-agents/e068, agents/e066     現行提出 (main.py = ライブ層, base.py = 公開シャシーの本文そのまま, LICENSE/NOTICE)
-agents/e069                  夜明けガードをシャシー非依存にした版。★新しい土台に載せ替えるときはこの main.py をコピーする
-agents/e068.tar.gz           提出物 (tar czf ... main.py base.py LICENSE.txt NOTICE.txt)
+agents/e072, e073, e074       現行提出 (e074 = e072 + YARN ルート表パッチ)。main.py は単体完結 (base.py なし)
+agents/e069                  夜明けガードをシャシー非依存にした版 (旧 v46 系。新土台では参考)
+agents/e074.tar.gz           提出物 (tar czf ... main.py LICENSE.txt NOTICE.txt)
 agents/sr0909_base, sr0909_live  素の 0909 と E055 (GA ツールの参照・対戦相手)
 agents/legacy/live_e         保留中の毎手プランナー。他の退役物は git 履歴 (agents/README.md 参照)
-third_party/public_agents/   公開 NB の実体 (v41〜v48 ほか)。v46 が現行の土台。出典と取り出し手順は NOTICE.md
+third_party/public_agents/   公開 NB の実体 (v39〜v48、v57)。herd2700 系の土台は v39/v50 系
 third_party/kaggriculture-cppsim  kagsim (bit-exact C++ エンジン、1 試合 0.1〜1.5 s)
 tests/                       現役ツール (一覧と用途は tests/README.md)
 .opencode/knowledge/         tracks (方針別) / refs (路線横断の参照) / experiments・history (追記専用ログ)。索引は README.md
