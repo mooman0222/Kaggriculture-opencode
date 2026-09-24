@@ -49,6 +49,13 @@ third_party/public_agents/      公開シャシーの実体 (v39〜v48、v57)。
 | **実戦席差し替え (最も当てになる)** | `--replays 'tmp/<battles>/episode-*.json' --team MMN0222 --base agents/<現提出>/main.py` |
 | 世界を固定 | `--shops <8 店をカンマ区切り>` |
 | 実戦の取得 | `kaggle competitions episodes <ref>` → `xargs kaggle competitions replay` → `tests/fetch_battles.py` / `tests/rating_traj.py <ref>` |
+| **席差し替え (ショップ列固定、09-24〜の主軸)** | `tests/swap_eval.py --replays 'tmp/slim_own/episode-*.json' --team MMN0222 --cands agents/A/main.py agents/B/main.py` (記録 margin を完全再現。先頭候補とのペア差 ± SE を出す) |
+| 鏡像相手との A/B | `tests/mirror_eval.py --a agents/A/main.py --b agents/e072/main.py --seeds 40` (鏡像同士はほぼ 0。席 0 が雑草で不利な seed があるので**同 seed のペア差**で読む) |
+| ペア × ルート掃引 | `tests/route_sweep.py --us agents/e074/main.py --opp agents/e072/main.py --seeds 6` → `tests/sweep_report.py` → `--cands` で検証 → `tests/build_route_patch.py` |
+| 相手が何者か | `tests/diverge.py --agent agents/e072/main.py --replays ... --opp-of MMN0222` (記録どおり進めて相手席の手を並べる。初回不一致 step) |
+| 実力の推定 | `tests/fit_strength.py tmp/traj/<sid>_traj.json --since <時刻>` (同じ時間帯どうしで比べる) |
+| 品目別の収支 | `tests/replay_stats.py` (kagsim に `sell_revenue_items` / `spend_by` を計装済み) |
+| リプレイの取得 | API は 429 が厳しい。`tests/fetch_eps.py --jobs 1` で逐次、`tests/slim_replays.py` で 32MB → 0.3MB に縮める。上位の試合は公式 `kaggle/kaggriculture-episodes-YYYY-MM-DD` (約 600 局/日) |
 
 - **ユニット行動を触らない層なら分散が小さく微差が測れる** (クローンが保たれるため)。触ると位置がドリフトして分散が跳ねる。
 - **世界ドロー (09-23)**: 農場行動を 1 手変えるだけでショップ列が入れ替わる (±30-50k)。**農場を触る変更は pinned shops で測る** (`kagsim.Game(seed,720,[8 shops])`)。
@@ -63,6 +70,7 @@ third_party/public_agents/      公開シャシーの実体 (v39〜v48、v57)。
 
 | 手 | 効果 | 備考 |
 |---|---|---|
+| **鏡像への市場先回し (E076、09-24 提出)** | 実戦 458 局の席差し替えで **+113±15 (t=7.7)、勝ち 279→307**、鏡像 32W8L | 肥料 (需要ゼロ、1 個ごとに永久に $0.2 安) の 1 手先回し + 需要ティック直後の手に、その窓でテープが売る高級品をまとめて売る。鏡像は同じ手番で売るため先に高値を取れる |
 | **ルート表の修正 (E074、09-23 提出)** | YARN ペア **7 本**で held-out **+0.5k〜+4.1k/該当ペア** (26-39/40 正) | 農場・市場を触らない唯一の改善。V92 が全 YARN ペアを route 9 に上書きしていたのが原因。r126 (6C+11S) / r0 (8C+6S+3G) が勝つペアがある |
 | **公開シャシーの追随** | v43 → v46 で **E065 比 +1,386** (作業 1 時間) | 最も費用対効果が高い。放置が最大のリスク |
 | **夜明けガード** (E068) | 対 素の v46 ペア差 **+248±24** (t=10.3)、実戦席差し替えで **勝ち 68→76** | エンジンの `drop_inventories` (容量 100 超は破棄) を突く。**土台非依存** (v43 +203 / v45 +149 / v48 +335) |
@@ -87,6 +95,9 @@ third_party/public_agents/      公開シャシーの実体 (v39〜v48、v57)。
 | **Transformer 売り層のハイブリッド** | 実装前の伸びしろ測定で**対 v46 +$9/局**。`tracks/transformer.md` 5 節 |
 | テープの CARE を FEED に差し替え | PASS+CARE **−233±38**、空振り CARE のみ **−154±34**。棚に小麦はあるが、**手持ち 1 個を抜くと同じ手の後続 FEED が落ちる** |
 | 1 位の開幕小麦ミクロ構造の移植 | **−87,259 ± 2,001、60/60 悪化**。`_r36_reserve` の負債記帳と給餌小麦の連鎖を同時に壊す |
+| 家畜の増産 (herd 系の給餌ガード E075) | **−1,313±105**。牛乳・羊毛は両者の供給が需要を超えて飽和し、限界収入がマイナス (牛乳 +22 個で売上 −403) |
+| 上位の記録をテープとして再生 | 記録 112k → 47k。開幕の小麦往復で数ドルずれ、step 17 の種購入が落ちて連鎖崩壊 |
+| 窓先回しを陳列の先頭に置く | 末尾に置く版より −200 (同じ世界 30 戦)。追加の SELL は末尾に足す |
 
 **本家と同じ着想の層は取り込まれて消える。** E065 の売りリード層は v43 で +1,700 → v46 で +102。
 一方**エンジンの規則を突く層は土台が変わっても残る** (夜明けガード)。次に探すならエンジン規則側。
