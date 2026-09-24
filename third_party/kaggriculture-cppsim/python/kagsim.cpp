@@ -259,6 +259,14 @@ struct Game {
         for (int i = 0; i < N_ITEMS; ++i) { rev_items[names[i]] = f.sell_rev_items[i]; sold_items[names[i]] = f.sold_units[i]; }
         t["sell_revenue_items"] = rev_items;
         t["sold_units_items"] = sold_items;
+        py::dict sp;
+        sp["HIRE"] = f.spend_by[M_HIRE][0]; sp["LAND"] = f.spend_by[M_BUY_LAND][0];
+        for (int i = 0; i < N_ITEMS; ++i) {
+            if (f.spend_by[M_BUY_SEED][i]) sp[py::str(std::string("SEED_") + names[i])] = f.spend_by[M_BUY_SEED][i];
+            if (f.spend_by[M_BUY_ANIMAL][i]) sp[py::str(std::string("ANIMAL_") + names[i])] = f.spend_by[M_BUY_ANIMAL][i];
+            if (f.spend_by[M_BUY_PRODUCT][i]) sp[py::str(std::string("PRODUCT_") + names[i])] = f.spend_by[M_BUY_PRODUCT][i];
+        }
+        t["spend_by"] = sp;
         return t;
     }
     explicit Game(uint64_t seed, int steps = 720,

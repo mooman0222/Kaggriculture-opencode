@@ -216,6 +216,7 @@ struct Farm {
     double  sell_revenue = 0;   // coins actually received from SELLs
     double  sell_rev_items[N_ITEMS] = {0};  // per-item revenue (instrumentation only)
     double  total_spend = 0;    // coins actually paid out
+    double  spend_by[8][N_ITEMS] = {{0}};  // [market op][item] coins paid (instrumentation only)
     // Settle telemetry (instrumentation only, same contract as `discarded`):
     // counters of what the settle does in SILENCE, so an audit reads engine
     // truth instead of reconstructing it from state deltas outside.
@@ -634,18 +635,18 @@ private:
             case M_BUY_PRODUCT:
                 if (f.money < price) return false;
                 if (f.shed_total >= cfg.shed_capacity) return false;
-                f.money -= price; f.total_spend += price;
+                f.money -= price; f.total_spend += price; f.spend_by[M_BUY_PRODUCT][item] += price;
                 f.shed[item] += 1; f.shed_total += 1;
                 st.market.inventory[item] -= 1;
                 return true;
             case M_BUY_SEED:
                 if (f.money < price) return false;
-                f.money -= price; f.total_spend += price; f.seeds[item] += 1;
+                f.money -= price; f.total_spend += price; f.seeds[item] += 1; f.spend_by[M_BUY_SEED][item] += price;
                 return true;
             case M_BUY_ANIMAL:
                 if (f.money < price) return false;
                 if (f.shed_total >= cfg.shed_capacity) return false;
-                f.money -= price; f.total_spend += price;
+                f.money -= price; f.total_spend += price; f.spend_by[M_BUY_ANIMAL][item] += price;
                 f.shed[item] += 1; f.shed_total += 1;
                 return true;
         }
@@ -660,7 +661,7 @@ private:
     void do_hire(Farm& f) {
         int cost = cfg.hire_mult * fib(f.hires_today);
         if (f.money < cost || f.n_units >= MAX_UNITS) { f.tel_refused_hire += 1; return; }
-        f.money -= cost; f.total_spend += cost;
+        f.money -= cost; f.total_spend += cost; f.spend_by[M_HIRE][0] += cost;
         f.tel_hire_paid += cost;
         f.hires_today += 1;
         // Spawn on the first free shed-access tile (NWSE), ties by occupancy.
@@ -682,7 +683,7 @@ private:
         if (extra >= 3) { f.tel_refused_land += 1; return; }
         int cost = LAND_PRICES[extra];
         if (f.money < cost) { f.tel_refused_land += 1; return; }
-        f.money -= cost; f.total_spend += cost;
+        f.money -= cost; f.total_spend += cost; f.spend_by[M_BUY_LAND][0] += cost;
         int quad = LAND_ORDER[extra];
         f.n_quadrants += 1;
         for (int y = 0; y < cfg.board_size; ++y)
