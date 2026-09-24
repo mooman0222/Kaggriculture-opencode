@@ -7062,16 +7062,8 @@ _E074_PATCH = {('PIZZA_SHOP', 'YARN_STORE'): 0, ('SMOOTHIE_SHOP', 'YARN_STORE'):
 _E074_ORIG_ROUTER = _IMPL.chassis.router
 
 
-_X078_NOFIN = int(__import__('os').environ.get('X078_NOFIN', '0'))
-_X078_NOFIN_ROUTES = {110, 112, 120, 103, 124, 106, 107, 100}
-
-
 def _e074_router(observation, step, state):
     route = _E074_ORIG_ROUTER(observation, step, state)
-    if _X078_NOFIN and step >= 648 and state.get('x078_mid') is not None:
-        mid = state['x078_mid']
-        if _X078_NOFIN == 1 or mid in _X078_NOFIN_ROUTES:
-            return mid
     if 144 <= step < 648:
         try:
             shops = tuple((observation.get('town') or {}).get('unlocked_shops') or [])[:2]
@@ -7079,7 +7071,6 @@ def _e074_router(observation, step, state):
                 route = _E074_PATCH[shops]
         except Exception:
             pass
-        state['x078_mid'] = route
     return route
 
 
@@ -7191,195 +7182,12 @@ globals().pop('agent', None)
 agent = e076_agent
 
 
-# x078 (dev): goose-only idle feed guard. Eggs sell on a log price curve and never
-# saturate, unlike milk/wool whose extra units lowered revenue (E075).
-_X078_GOOSEFEED = int(__import__('os').environ.get('X078_GOOSEFEED', '0'))
-_CXTB_MIN_REVENUE = float(__import__('os').environ.get('X078_TOMATO_MIN', '9000'))
-_X078_REPORT = dict(feeds=0, errors=0)
-_X078_PARENT = e076_agent
-
-
-def x078_agent(observation, configuration=None):
-    action = _X078_PARENT(observation, configuration)
-    if not _X078_GOOSEFEED:
-        return action
-    try:
-        seat = int(observation['player'])
-        farm = observation['farms'][seat]
-        pos = [farm['farmer']] + list(farm['hands'])
-        inv = observation['private']['inventories']
-        units = [action.get('farmer') or ['PASS']] + list(action.get('hands') or [])
-        fed = set(); changed = False
-        for i, cmd in enumerate(units[:len(pos)]):
-            x, y = pos[i]; tile = farm['tiles'][y][x]
-            if not (isinstance(tile, dict) and tile.get('animal') == 'GOOSE'):
-                continue
-            if cmd and cmd[0] == 'FEED':
-                fed.add((x, y)); continue
-            if (cmd or ['PASS'])[0] == 'PASS' and not tile.get('fed_today') and (x, y) not in fed \
-                    and i < len(inv) and inv[i].get('WHEAT', 0) > 0:
-                units[i] = ['FEED']; fed.add((x, y)); changed = True; _X078_REPORT['feeds'] += 1
-        if changed:
-            return dict(action, farmer=units[0], hands=units[1:])
-    except Exception:
-        _X078_REPORT['errors'] += 1
-    return action
-
-
+# ---------------------------------------------------------------------------
+# E079 (MMN0222): four more anti-mirror routes, swept with the E078 market layers on
+# (paired against E078's route on 12 held-out worlds: +3387, +2527, +543, +320), and the
+# tomato investment gate at 7,500 instead of 9,000 (real-replay seat swap +45 +-19).
+_E079_PATCH = {"ICE_CREAM_SHOP+YARN_STORE": 115, "PET_CAFE+FARMERS_MARKET": 105, "BAKERY+PET_CAFE": 120, "YARN_STORE+BAKERY": 126}
+_E074_PATCH.update({tuple(k.split('+')): v for k, v in _E079_PATCH.items()})
+_CXTB_MIN_REVENUE = 7500
 globals().pop('agent', None)
-agent = x078_agent
-
-
-# x078 (dev): pure-race items (no town demand at all) sold as soon as they are in the shed.
-# MELON has only the town centre's 1/day and a quadratic price drop, so a mirror that holds
-# its lots for the tape's step gets the lower half of the curve.
-_X078_ASAP = set(filter(None, __import__('os').environ.get('X078_ASAP', '').split(',')))
-_X078_ASAP_PARENT = x078_agent
-
-
-def x078_asap_agent(observation, configuration=None):
-    action = _X078_ASAP_PARENT(observation, configuration)
-    if not _X078_ASAP:
-        return action
-    try:
-        step = int(observation['step'])
-        if step < 2 or step >= 710:
-            return action
-        market = [list(o) for o in (action.get('market') or [])]
-        if len(market) >= 10:
-            return action
-        shed = dict(observation['private']['shed'])
-        for u in _e076_units(action):
-            if u and u[0] == 'PICKUP' and len(u) > 1:
-                shed[u[1]] = shed.get(u[1], 0) - _e076_qty(u)
-        selling = set()
-        for o in market:
-            if o and o[0] == 'SELL' and len(o) >= 3:
-                shed[o[1]] = shed.get(o[1], 0) - _e076_qty(o); selling.add(o[1])
-        for item in sorted(_X078_ASAP):
-            n = shed.get(item, 0)
-            if n > 0 and item not in selling and len(market) < 10:
-                market.append(['SELL', item, n])
-        if len(market) != len(action.get('market') or []):
-            action = dict(action, market=market)
-    except Exception:
-        pass
-    return action
-
-
-globals().pop('agent', None)
-agent = x078_asap_agent
-
-
-# x078 (dev): adaptive front-run. Infer the rival's sales each step from the shared market
-# inventory (delta = our executed sales + theirs - town consumption). When the rival twice sells
-# an item within the three steps before one of our tape sales of it, sell that item as soon as
-# it is in our shed for the rest of the game.
-_X078_AFR = int(__import__('os').environ.get('X078_AFR', '0'))
-_X078_AFR_ITEMS = ('STRAWBERRY', 'MILK', 'WOOL', 'MELON', 'CARROT', 'TOMATO')
-_X078_AFR_MINEV = int(__import__('os').environ.get('X078_AFR_MINEV', '8'))
-_X078_AFR_RATE = float(__import__('os').environ.get('X078_AFR_RATE', '0.3'))
-_X078_SHOP_MASK = {'BAKERY': ('EGG', 'WHEAT'), 'BRUNCH_SPOT': ('EGG', 'WHEAT', 'STRAWBERRY'),
-                   'FARMERS_MARKET': ('WHEAT', 'CARROT', 'TOMATO', 'STRAWBERRY'),
-                   'ICE_CREAM_SHOP': ('STRAWBERRY', 'MILK', 'WHEAT'), 'PET_CAFE': ('CARROT',),
-                   'PIZZA_SHOP': ('MILK', 'TOMATO', 'WHEAT'), 'SMOOTHIE_SHOP': ('STRAWBERRY', 'MILK'),
-                   'YARN_STORE': ('WOOL',)}
-_X078_SHOP_MULT = {'PET_CAFE': 2, 'YARN_STORE': 2}
-_X078_AFR_STATE = {}
-_X078_AFR_REPORT = dict(detected=0, asap_sells=0, errors=0)
-_X078_AFR_PARENT = x078_asap_agent
-
-
-def _x078_consumption(step, shops):
-    c = {}
-    if step % 4 == 0:
-        for s in shops:
-            for it in _X078_SHOP_MASK.get(s, ()):
-                c[it] = c.get(it, 0) + _X078_SHOP_MULT.get(s, 1)
-    if step % 24 == 0:
-        for it in PRODUCTS:
-            if it != 'FERTILIZER':
-                c[it] = c.get(it, 0) + 1
-    return c
-
-
-def x078_afr_agent(observation, configuration=None):
-    action = _X078_AFR_PARENT(observation, configuration)
-    if not _X078_AFR:
-        return action
-    try:
-        step = int(observation['step']); seat = int(observation['player'])
-        st = _X078_AFR_STATE.get(seat)
-        if step == 0 or st is None or step <= st.get('step', -1):
-            st = _X078_AFR_STATE[seat] = dict(step=-1, score={}, asap=set(), opp_recent=[])
-            if step == 0:
-                _X078_AFR_REPORT.update(detected=0, asap_sells=0, errors=0)
-        inv = observation['market']['inventory']
-        if st.get('step') == step - 1 and 'inv' in st:
-            cons = _x078_consumption(step - 1, st['shops'])
-            for it in _X078_AFR_ITEMS:
-                theirs = inv[it] - st['inv'][it] + cons.get(it, 0) - st['ours'].get(it, 0)
-                if theirs > 0:
-                    st['opp_recent'].append((step - 1, it))
-        st['opp_recent'] = [(s, it) for s, sit in [(x[0], x[1]) for x in st['opp_recent']] for it in [sit] if s >= step - 4]
-        route = _IMPL.chassis.players[seat]['route'] if seat in _IMPL.chassis.players else None
-        tape = _IMPL.chassis.routes.get(route)
-        market = [list(o) for o in (action.get('market') or [])]
-        if tape and 2 <= step < 700:
-            planned = set()
-            for k in (0, 1, 2):
-                if step + k < len(tape) and isinstance(tape[step + k], dict):
-                    for o in tape[step + k].get('market') or []:
-                        if o and o[0] == 'SELL' and len(o) > 1 and o[1] in _X078_AFR_ITEMS:
-                            planned.add(o[1])
-            if _X078_AFR == 1:
-                for s, it in st['opp_recent']:
-                    if it in planned and (s, it) not in st.setdefault('counted', set()):
-                        st['counted'].add((s, it)); st['score'][it] = st['score'].get(it, 0) + 1
-                        if st['score'][it] >= 2 and it not in st['asap']:
-                            st['asap'].add(it); _X078_AFR_REPORT['detected'] += 1
-            else:
-                # rate trigger: share of our sale events that the rival pre-empted in the 3 steps before
-                ours_now = {o[1] for o in market if o and o[0] == 'SELL' and len(o) > 2 and o[1] in _X078_AFR_ITEMS and _e076_qty(o) > 0}
-                opp_now = {it for s_, it in st['opp_recent'] if s_ == step - 1}
-                hist = st.setdefault('our_hist', {})
-                for it in ours_now:
-                    st['ev'] = st.get('ev', 0) + 1
-                    if any(it == it2 and step - 3 <= s_ <= step - 1 and it not in hist.get(s_, ()) for s_, it2 in st['opp_recent']):
-                        st['frc'] = st.get('frc', 0) + 1
-                hist[step] = ours_now
-                for k in [k for k in hist if k < step - 4]:
-                    del hist[k]
-                if not st['asap'] and st.get('ev', 0) >= _X078_AFR_MINEV and st.get('frc', 0) >= _X078_AFR_RATE * st['ev']:
-                    st['asap'] = set(_X078_AFR_ITEMS); _X078_AFR_REPORT['detected'] += 1
-            if st['asap'] and len(market) < 10:
-                shed = dict(observation['private']['shed'])
-                for u in _e076_units(action):
-                    if u and u[0] == 'PICKUP' and len(u) > 1:
-                        shed[u[1]] = shed.get(u[1], 0) - _e076_qty(u)
-                selling = set()
-                for o in market:
-                    if o and o[0] == 'SELL' and len(o) >= 3:
-                        shed[o[1]] = shed.get(o[1], 0) - _e076_qty(o); selling.add(o[1])
-                for it in sorted(st['asap']):
-                    n = shed.get(it, 0)
-                    if n > 0 and it not in selling and len(market) < 10:
-                        market.append(['SELL', it, n]); _X078_AFR_REPORT['asap_sells'] += 1
-                if len(market) != len(action.get('market') or []):
-                    action = dict(action, market=market)
-        # our sales this step, for next step's inference (projected shed caps each order)
-        view = _View(observation, seat, _IMPL.chassis.cfg)
-        proj = _IMPL.chassis._projected_shed(action, view)
-        ours = {}
-        for o in action.get('market') or []:
-            if o and o[0] == 'SELL' and len(o) >= 3 and o[1] in proj:
-                q = min(_e076_qty(o), max(0, proj[o[1]] - ours.get(o[1], 0)))
-                ours[o[1]] = ours.get(o[1], 0) + q
-        st.update(step=step, inv=dict(inv), ours=ours, shops=list((observation.get('town') or {}).get('unlocked_shops') or []))
-    except Exception:
-        _X078_AFR_REPORT['errors'] += 1
-    return action
-
-
-globals().pop('agent', None)
-agent = x078_afr_agent
+agent = e076_agent

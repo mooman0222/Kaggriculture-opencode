@@ -5,3 +5,4 @@ replay.json
 tmp/
 .claude/settings.local.json
 
+agents/pub_*/
