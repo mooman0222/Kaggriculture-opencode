@@ -31,6 +31,9 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--data", required=True, nargs="+"); ap.add_argument("--out", required=True)
     ap.add_argument("--epochs", type=int, default=4); ap.add_argument("--bs", type=int, default=128); ap.add_argument("--lr", type=float, default=5e-4)
     ap.add_argument("--max-games", type=int, default=100000); ap.add_argument("--val", type=float, default=0.1); ap.add_argument("--init")
+    ap.add_argument("--patience", type=int, default=0,
+                    help="early stopping: break when val loss fails to improve by --min-delta for this many consecutive epochs (0 = off, legacy fixed-epoch behavior)")
+    ap.add_argument("--min-delta", type=float, default=0.0)
     a = ap.parse_args()
     files = sorted(f for pattern in a.data for f in glob.glob(pattern)); random.Random(0).shuffle(files); files = files[:a.max_games]
     nv = max(1, int(len(files) * a.val)); t0 = time.time()
@@ -42,6 +45,7 @@ def main():
     print("params", sum(p.numel() for p in model.parameters()), "device", dev, flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.01)
     spe = math.ceil(len(tr["uop"]) / a.bs); sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=a.epochs * spe)
+    best = float("inf"); stale = 0
     for ep in range(a.epochs):
         model.train(); perm = np.random.RandomState(ep).permutation(len(tr["uop"])); tot = 0.0; t1 = time.time()
         for bi, s in enumerate(range(0, len(perm), a.bs)):
@@ -54,8 +58,18 @@ def main():
                 b = batch(va, np.arange(s, min(s + 512, len(va["uop"]))), dev); l, acc = raw_loss(model(b["tiles"], b["units"], b["items"], b["glob"]), b)
                 vl += l.item(); accs.append(acc)
         mean = {k: round(float(np.mean([x[k] for x in accs])), 4) for k in accs[0]}
-        print(f"epoch {ep} train loss {tot / spe:.3f} val loss {vl / len(accs):.3f} val acc {mean} [{time.time() - t1:.0f}s]", flush=True)
+        vloss = vl / len(accs)
+        tag = ""
+        if vloss < best - a.min_delta:
+            best = vloss; stale = 0
+            torch.save(model.state_dict(), a.out.replace(".pt", "_best.pt")); tag = " [best]"
+        elif a.patience:
+            stale += 1; tag = f" [stale {stale}/{a.patience}]"
+        print(f"epoch {ep} train loss {tot / spe:.3f} val loss {vloss:.3f} val acc {mean}{tag} [{time.time() - t1:.0f}s]", flush=True)
         torch.save(model.state_dict(), a.out); torch.save(model.state_dict(), a.out.replace(".pt", f"_ep{ep}.pt"))
+        if a.patience and stale >= a.patience:
+            print(f"early stopping at epoch {ep} (best val loss {best:.3f}, --patience {a.patience} --min-delta {a.min_delta})", flush=True)
+            break
 
 
 if __name__ == "__main__":

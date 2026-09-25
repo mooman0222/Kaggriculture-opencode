@@ -33,8 +33,9 @@ engine の行動空間そのもの (`rl/raw.py`)。知見と到達点は `.openc
 - データ生成 (自分のデータ): `rl/gen_selfplay.py --raw --agent <教師> --opp <相手...> --seed0 N --games M --out DIR` (`--dry LO,HI` で 1 日だけ水やりを抜く、`--noise` は DART)
 - 回復データ: `rl/gen_recover.py --student <ckpt> --agent <教師> ...` (複製の誤りを実行し影の教師が 24 手回復)
 - 学習: `rl/train_raw.py --data 'A/*.npz' 'B/*.npz' --out X.pt --epochs 8 --bs 512 --lr 7e-4 [--init ckpt]`
+  (`--patience N --min-delta D`: val loss が D 以上改善しない epoch が N 回続いたら停止し `_best.pt` を残す。既定 0 = 固定 epoch。決まるのは最適化の収束だけで選択は閉ループゲートのまま)
 - 評価: `rl/raw.py X.pt --games 32 --vs <相手>`、分岐の手番: `rl/diag/diverge_raw.py X.pt <教師> <相手> 12` (`HANDOFF=1` で分岐後を教師に任せる)
-- Kaggle: `rl/kaggle27` (生成+学習)、`rl/kaggle28/30` (回復データ)、`rl/kaggle29` (時刻)、`rl/kaggle31` (雑草)。コードは dataset `mmn0222/kaggriculture-rl-panel-agents` の `code_rl/` (更新は `cp rl/*.py tmp/kaggle_panel/code_rl/ && kaggle datasets version -p tmp/kaggle_panel -r zip`)
+- Kaggle: `rl/kaggle27` (生成+学習)、`rl/kaggle28/30` (回復データ)、`rl/kaggle29` (時刻)、`rl/kaggle31` (雑草)、`rl/kaggle32` (標的 recover 150 局 + 最初から学習 + 新規 band seed 5200 で判定。`rl/` コードは同梱の target dataset 内 `code_rl/` を優先し panel-agents の再 upload なしに更新する)。コードは dataset `mmn0222/kaggriculture-rl-panel-agents` の `code_rl/` (更新は `cp rl/*.py tmp/kaggle_panel/code_rl/ && kaggle datasets version -p tmp/kaggle_panel -r zip`)
 - 生成は Kaggle でも 1 局 2〜5 秒 (E081 は重い)。生成済みの shard は前のカーネルを `kernel_sources` に入れれば再利用できる (中身 `uop` で選ぶ。v41self には同名の旧形式 shard がある)
 
 ## Policy3: 一段 option 方策 (旧本線、行動表現の天井で打ち止め) — 現在地 2026-09-18
