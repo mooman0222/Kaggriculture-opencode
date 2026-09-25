@@ -11,6 +11,7 @@ import numpy as np
 from features import (
     CROPS,
     MAX_UNITS,
+    MKT_BUCKETS,
     N_OPS,
     OP_INDEX,
     PRODUCTS,
@@ -30,6 +31,33 @@ def mkt_argmax(logits, head, debias=()):
     adjusted = np.asarray(logits, dtype=np.float64).copy()
     adjusted[..., 1:] -= np.log(MKT_POS_W[head])
     return adjusted.argmax(-1)
+
+
+MKT_VALUES = {"sell": MKT_BUCKETS, "buyp": MKT_BUCKETS, "seed": MKT_BUCKETS, "anim": list(range(5)), "hire": list(range(13)), "land": [0, 1]}
+
+
+def mkt_decode(logits, head, mode="argmax", debias=(), state=None):
+    """市場ヘッドの復号。argmax は 1 手ごとの最頻値で、局の総量を +20〜90% 歪める (教師の「たまに 1 個買う」を
+    毎手の 0 か pos_w で膨らんだ非ゼロに潰すため)。sample / dither は pos_w を戻した較正確率を使い、局の総量の期待値を保つ:
+    sample はクラスを抽選、dither は期待数量を手をまたいで繰り越し、整数部を出す (誤差拡散、決定的)。"""
+    if mode == "argmax":
+        return mkt_argmax(logits, head, debias)
+    lg = np.asarray(logits, dtype=np.float64)
+    shape = lg.shape[:-1]
+    lg = lg.reshape(-1, lg.shape[-1]).copy()
+    lg[:, 1:] -= np.log(MKT_POS_W[head])
+    p = np.exp(lg - lg.max(-1, keepdims=True)); p /= p.sum(-1, keepdims=True)
+    state = {} if state is None else state
+    if mode == "sample":
+        rng = state.setdefault("mkt_rng", np.random.default_rng(0))
+        idx = np.minimum((p.cumsum(-1) < rng.random((len(p), 1))).sum(-1), p.shape[-1] - 1)
+    else:
+        values = np.asarray(MKT_VALUES[head], dtype=np.float64)
+        acc = state.setdefault("mkt_acc_" + head, np.zeros(len(p)))
+        acc += p @ values
+        idx = (values[None, :] <= acc[:, None] + 1e-9).sum(-1) - 1
+        acc -= values[idx]
+    return idx.reshape(shape)
 
 
 def step_toward(pos, tgt):

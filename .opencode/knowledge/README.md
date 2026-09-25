@@ -10,7 +10,7 @@
 | | 状態 | 中身 |
 |---|---|---|
 | **`tracks/chassis.md`** | **本線 (提出系)** | 公開シャシー + 自前の市場層。E055〜E068。夜明けガード。実戦の敗因分解 |
-| `tracks/transformer.md` | 停滞 | 学習方策 Policy3 (模倣学習)。手順書は `rl/README.md` |
+| `tracks/transformer.md` | 作り直し中 | 学習方策。**0 節 = 09-24 の根本原因** (行動表現・他人のデータ・PPO の雑音)。新表現は `rl/raw.py`、手順書は `rl/README.md` |
 | `tracks/ga.md` | 棄却 | GA によるテープ進化。素のテープに 245 点負けた |
 | `tracks/planner.md` | 棄却 | 自作プランナー / ルート外科。固定ルートは農場側の介入を受け付けない |
 
