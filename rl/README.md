@@ -25,7 +25,19 @@ uv pip install --python .venv/bin/python -e third_party/kaggriculture-cppsim   #
 `act2.py` (推論: ユニット逐次に目的タイルを選び claim、到着時に作業)、`rollout2.py` (ベクトル化自己対戦、logp を保存)、`np_policy2.py` (numpy 推論)。
 旧: `model.py` / `train_bc.py` / `bc_play.py` / `rollout.py` / `ppo.py` (v1: 方向を直接予測、崩壊した)。
 
-## Policy3: 一段 option 方策 (現行本線) — 現在地 2026-09-18
+## raw 表現 (2026-09-24〜、現行) — 手順
+
+engine の行動空間そのもの (`rl/raw.py`)。知見と到達点は `.opencode/knowledge/tracks/transformer.md` 0 節。
+
+- 表現の検査: `.venv/bin/python rl/raw.py --check 'tmp/rootcause/v41json/episode-*.json' --team v41a` (記録を完全再現すること)
+- データ生成 (自分のデータ): `rl/gen_selfplay.py --raw --agent <教師> --opp <相手...> --seed0 N --games M --out DIR` (`--dry LO,HI` で 1 日だけ水やりを抜く、`--noise` は DART)
+- 回復データ: `rl/gen_recover.py --student <ckpt> --agent <教師> ...` (複製の誤りを実行し影の教師が 24 手回復)
+- 学習: `rl/train_raw.py --data 'A/*.npz' 'B/*.npz' --out X.pt --epochs 8 --bs 512 --lr 7e-4 [--init ckpt]`
+- 評価: `rl/raw.py X.pt --games 32 --vs <相手>`、分岐の手番: `rl/diag/diverge_raw.py X.pt <教師> <相手> 12` (`HANDOFF=1` で分岐後を教師に任せる)
+- Kaggle: `rl/kaggle27` (生成+学習)、`rl/kaggle28/30` (回復データ)、`rl/kaggle29` (時刻)、`rl/kaggle31` (雑草)。コードは dataset `mmn0222/kaggriculture-rl-panel-agents` の `code_rl/` (更新は `cp rl/*.py tmp/kaggle_panel/code_rl/ && kaggle datasets version -p tmp/kaggle_panel -r zip`)
+- 生成は Kaggle でも 1 局 2〜5 秒 (E081 は重い)。生成済みの shard は前のカーネルを `kernel_sources` に入れれば再利用できる (中身 `uop` で選ぶ。v41self には同名の旧形式 shard がある)
+
+## Policy3: 一段 option 方策 (旧本線、行動表現の天井で打ち止め) — 現在地 2026-09-18
 
 - `model3.py`: 各ユニットの `(目的タイル, 到着後の作業)` を 100 × 44 の joint option として直接スコアリング (op 別 rank-16 bilinear)。Policy2 の teacher-forcing と `prev` 入力を廃止。
   `bc_loss3` の `PASS_IDLE_WEIGHT` (学習器 `--pass-idle-weight`、既定 1.0) は未給水/未給餌が残る時の PASS ラベルの重み (bc11 で 0.1 を試し効果なし)。
