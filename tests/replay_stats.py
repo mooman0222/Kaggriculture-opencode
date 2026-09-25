@@ -58,7 +58,7 @@ def work(src):
         tel = g.telemetry(p)
         out.append(dict(eid=r["info"]["EpisodeId"], team=names[p], opp=names[1 - p], seat=p, money=g.reward(p), opp_money=g.reward(1 - p),
                         ok=ok, shops=shops, rev={k: tel["sell_revenue_items"][k] for k in ITEMS}, units={k: tel["sold_units_items"][k] for k in ITEMS},
-                        spend=tel["total_spend"], spend_by=tel["spend_by"], hire_paid=tel["hire_paid"], discarded=tel["shed_discarded_units"], sell_dead=tel["sell_dead_units"],
+                        spend=tel["total_spend"], spend_by=tel.get("spend_by", {}), hire_paid=tel["hire_paid"], discarded=tel["shed_discarded_units"], sell_dead=tel["sell_dead_units"],
                         animals_d20=animals[p], plants=plants[p], hires=hires[p], care=care[p], feed=feed[p]))
     return out
 

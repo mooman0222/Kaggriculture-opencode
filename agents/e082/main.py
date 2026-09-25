@@ -7194,41 +7194,29 @@ agent = e076_agent
 
 
 # ---------------------------------------------------------------------------
-# x082 (dev): early sale of cash goods, switchable. asap = every step, all projected
-# shed stock (E081); win = only at the first step of a town-demand window (step % 4 == 1,
-# the town consumes at the end of steps = 0 mod 4), all projected shed stock.
-# win0 = win shifted one step earlier (step % 4 == 0): front-runners sell at mod 0 and
-# eat the fresh-demand price while win (mod 1) eats their impact (09-26 wool finding).
-# wincap/win0cap = win/win0 with per-window per-item cap (X082_CAP, default 12) to avoid
-# dumping the whole shed into thin demand.
-_X082_MODE = _e076_os.environ.get('X082_MODE', 'win')
-_X082_ITEMS = tuple(filter(None, _e076_os.environ.get('X082_ITEMS', 'MILK,WOOL,STRAWBERRY').split(',')))
-_X082_CAP = int(_e076_os.environ.get('X082_CAP', '12'))
-_X082_CAPMAP = {}
-for _kv in filter(None, _e076_os.environ.get('X082_CAPS', '').split(',')):
-    _kk, _, _vv = _kv.partition(':')
-    if _kk and _vv:
-        _X082_CAPMAP[_kk.strip()] = int(_vv)
-def _x082_cap(item):
-    return _X082_CAPMAP.get(item, _X082_CAP)
-_X082_REPORT = dict(sells=0, units=0, errors=0)
-_X082_PARENT = e076_agent
+# E082 (MMN0222): E081 + pace the STRAWBERRY window-head sale (cap 6 lots).
+# Real-battle decomposition (09-26, 102 E081 games): mirror losses come from unit
+# prices, not units — WOOL +5.9%, MILK +1.8% at equal quantities. Micro-timing
+# (113205618): the front-runner sells ~12 lots at mod 0 while our dump-all at mod 1
+# eats the impact; dumping the whole shed into thin demand also crashes our own
+# price. Capping the ADDED strawberry sale at 6: own-pool swap +569 +-~60 (82W/102),
+# top band (42 games of 3000-rated mirrors) +351 +-52 (t=6.8, no flips),
+# reactive duels vs e072 24W0L +789 and vs E079 23W1L +711 (x082 wincap prototype).
+# MILK/WOOL caps hurt or neutral (milk cap loses wins 74->64), phase shift to mod 0
+# loses badly (-460, 26 W->L flips), so only STRAWBERRY is capped.
+_E081_ITEMS = ('MILK', 'WOOL', 'STRAWBERRY')
+_E082_STRAW_CAP = 6
+_E081_REPORT = dict(sells=0, units=0, errors=0)
+_E081_PARENT = e076_agent
 
 
-def x082_agent(observation, configuration=None):
-    action = _X082_PARENT(observation, configuration)
+def e081_agent(observation, configuration=None):
+    action = _E081_PARENT(observation, configuration)
     try:
         step = int(observation['step'])
         if step == 0:
-            for k in _X082_REPORT: _X082_REPORT[k] = 0
-        mode = _X082_MODE
-        if mode in ('win', 'wincap'):
-            fire = (step % 4 == 1)
-        elif mode in ('win0', 'win0cap'):
-            fire = (step % 4 == 0)
-        else:
-            fire = True  # asap and unknown modes fire every step
-        if not 2 <= step < 710 or not fire:
+            for k in _E081_REPORT: _E081_REPORT[k] = 0
+        if not 2 <= step < 710 or step % 4 != 1:
             return action
         market = [list(o) for o in (action.get('market') or [])]
         stock = projected_shed(action, FarmView(observation))
@@ -7236,12 +7224,10 @@ def x082_agent(observation, configuration=None):
             if o and o[0] == 'SELL' and len(o) >= 2:
                 stock[o[1]] = stock.get(o[1], 0) - _e076_qty(o)
         changed = False
-        for item in _X082_ITEMS:
+        for item in _E081_ITEMS:
             n = stock.get(item, 0)
-            if _X082_MODE in ('wincap', 'win0cap'):
-                _cap = _x082_cap(item)
-                if _cap > 0:
-                    n = min(n, _cap)
+            if item == 'STRAWBERRY':
+                n = min(n, _E082_STRAW_CAP)
             if n <= 0:
                 continue
             same = next((o for o in market if o and o[0] == 'SELL' and len(o) >= 3 and o[1] == item), None)
@@ -7251,14 +7237,14 @@ def x082_agent(observation, configuration=None):
                 market.append(['SELL', item, n])
             else:
                 continue
-            changed = True; _X082_REPORT['sells'] += 1; _X082_REPORT['units'] += n
+            changed = True; _E081_REPORT['sells'] += 1; _E081_REPORT['units'] += n
         if changed:
             action = dict(action, market=market)
     except Exception:
-        _X082_REPORT['errors'] += 1
+        _E081_REPORT['errors'] += 1
     return action
 
 
-x082_agent.telemetry = _X082_REPORT
+e081_agent.telemetry = _E081_REPORT
 globals().pop('agent', None)
-agent = x082_agent
+agent = e081_agent
