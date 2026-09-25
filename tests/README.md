@@ -12,6 +12,8 @@
 - `fetch_battles.py --dir DIR --team MMN0222 --lb LB.csv` — 24 手署名・家畜構成別の勝敗 (battles.json を出力)
 - `lineage_census.py --dir DIR` — 開幕 72 手ハッシュ別の勝敗
 - `match_versions.py --replays GLOB --me agents/e060` — 相手の版を全手再現で特定 (候補 = third_party/public_agents/*)
+- `identify_seats.py GLOB OUT.json CAND...` — 任意の試合の各席を候補が何手目まで再現できるか (我々の試合でなくてよい。719 = 同一)
+- `panel_eval.py CANDS OPPS SEED0 N OUT.json` — 候補を反応する相手と同じ seed・席で並べ、先頭候補とのペア差と勝数
 - `rating_traj.py <submission id>` — 非公式 API でレーティング推移・相手帯別成績
 - `fetch_top.py --lb LB.csv --top N --per M --out DIR` — LB 上位のベスト提出のリプレイ取得
 - `team_profile.py DIR TEAM [--brief]` — チームの各試合 (署名・購入・品目別売上) と試合間の農場行動一致 (固定テープか適応型か)
