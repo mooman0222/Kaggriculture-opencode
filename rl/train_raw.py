@@ -34,6 +34,8 @@ def main():
     ap.add_argument("--patience", type=int, default=0,
                     help="early stopping: break when val loss fails to improve by --min-delta for this many consecutive epochs (0 = off, legacy fixed-epoch behavior)")
     ap.add_argument("--min-delta", type=float, default=0.0)
+    ap.add_argument("--market-only", action="store_true",
+                    help="freeze everything except the market heads (mkind/mqty): fine-tune market timing on off-trajectory states without touching farm behavior")
     a = ap.parse_args()
     files = sorted(f for pattern in a.data for f in glob.glob(pattern)); random.Random(0).shuffle(files); files = files[:a.max_games]
     nv = max(1, int(len(files) * a.val)); t0 = time.time()
@@ -42,8 +44,16 @@ def main():
     dev = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     model = Policy4().to(dev)
     if a.init: model.load_state_dict(torch.load(a.init, map_location=dev)); print("init from", a.init, flush=True)
+    if a.market_init:
+        donor = torch.load(a.market_init, map_location=dev)
+        model.load_state_dict({k: v for k, v in donor.items() if "mkind" in k or "mqty" in k}, strict=False)
+        print("market heads from", a.market_init, flush=True)
+    if a.market_only:
+        for n, p in model.named_parameters():
+            if "mkind" not in n and "mqty" not in n: p.requires_grad = False
+        print("market-only: trainable", sum(p.numel() for p in model.parameters() if p.requires_grad), flush=True)
     print("params", sum(p.numel() for p in model.parameters()), "device", dev, flush=True)
-    opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=0.01)
+    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=a.lr, weight_decay=0.01)
     spe = math.ceil(len(tr["uop"]) / a.bs); sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=a.epochs * spe)
     best = float("inf"); stale = 0
     for ep in range(a.epochs):
