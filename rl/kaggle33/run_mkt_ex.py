@@ -32,8 +32,9 @@ _tgt = [x for x in sorted(glob.glob(os.path.join(INPUT, "**", "code_rl", "train_
 rl = os.path.dirname(_tgt[0]) if _tgt else os.path.dirname(first("train_raw.py", "panel-agents"))
 kagsim_src = os.path.dirname(os.path.dirname(first("sim/sim.hpp", "v41self")))
 agents_p = os.path.dirname(os.path.dirname(first("e072/main.py", "panel-agents")))
-agents_t = os.path.dirname(os.path.dirname(first("e082/main.py", "target-e081"))) if \
-    glob.glob(os.path.join(INPUT, "**", "target-e081", "agents", "e082", "main.py"), recursive=True) else agents_p
+_ta = [x for x in sorted(glob.glob(os.path.join(INPUT, "**", "agents", "e082", "main.py"), recursive=True)) if "target-e081" in x]
+assert _ta, "target-e081/agents/e082/main.py"
+agents_t = os.path.dirname(os.path.dirname(_ta[0]))
 A_p = lambda n: os.path.join(agents_p, n, "main.py"); A_t = lambda n: os.path.join(agents_t, n, "main.py")
 print("rl:", rl, "teacher:", A_t("e082"), flush=True)
 panel = [A_t("e082"), A_t("e082"), A_p("e072"), A_p("e074"), A_p("pub_herd2700"), A_p("v46"), A_p("v48"), A_p("v41")]
@@ -53,6 +54,7 @@ procs = [subprocess.Popen([sys.executable, os.path.join(rl, "gen_selfplay.py"), 
                            "--seed0", str(250000 + p * PER), "--games", str(PER), "--out", clean], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"),
                           stdout=open(os.path.join(output, f"gen_{p}.log"), "w"), stderr=subprocess.STDOUT) for p in range(PROCS)]
 print("gen rc", [p.wait() for p in procs], "clean games", len(glob.glob(os.path.join(clean, "*.npz"))), f"[{time.time() - t0:.0f}s]", flush=True)
+assert len(glob.glob(os.path.join(clean, "*.npz"))) >= (4 if DRY else 500), "gen produced no shards"
 
 # donor init: dry_ep7 (better units: seed 5000 -10k vs tgt -67k)
 donor = None
