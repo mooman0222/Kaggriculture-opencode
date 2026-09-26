@@ -31,9 +31,12 @@ def first(suffix, prefer):
 _tgt = [x for x in sorted(glob.glob(os.path.join(INPUT, "**", "code_rl", "train_raw.py"), recursive=True)) if "target-e081" in x]
 rl = os.path.dirname(_tgt[0]) if _tgt else os.path.dirname(first("train_raw.py", "panel-agents"))
 kagsim_src = os.path.dirname(os.path.dirname(first("sim/sim.hpp", "v41self")))
-agents = os.path.dirname(os.path.dirname(first("e082/main.py", "panel-agents"))); A = lambda n: os.path.join(agents, n, "main.py")
-print("rl:", rl, "teacher:", A("e082"), flush=True)
-panel = [A(n) for n in ("e082", "e082", "e072", "e074", "pub_herd2700", "v46", "v48", "v41")]
+agents_p = os.path.dirname(os.path.dirname(first("e072/main.py", "panel-agents")))
+agents_t = os.path.dirname(os.path.dirname(first("e082/main.py", "target-e081"))) if \
+    glob.glob(os.path.join(INPUT, "**", "target-e081", "agents", "e082", "main.py"), recursive=True) else agents_p
+A_p = lambda n: os.path.join(agents_p, n, "main.py"); A_t = lambda n: os.path.join(agents_t, n, "main.py")
+print("rl:", rl, "teacher:", A_t("e082"), flush=True)
+panel = [A_t("e082"), A_t("e082"), A_p("e072"), A_p("e074"), A_p("pub_herd2700"), A_p("v46"), A_p("v48"), A_p("v41")]
 
 os.makedirs(output, exist_ok=True)
 basepp = os.environ.get("PYTHONPATH", "")
@@ -46,7 +49,7 @@ else:
 
 # Phase 1: E082 clean data
 clean = os.path.join(output, "clean82"); t0 = time.time()
-procs = [subprocess.Popen([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A("e082"), "--opp", *panel,
+procs = [subprocess.Popen([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A_t("e082"), "--opp", *panel,
                            "--seed0", str(250000 + p * PER), "--games", str(PER), "--out", clean], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"),
                           stdout=open(os.path.join(output, f"gen_{p}.log"), "w"), stderr=subprocess.STDOUT) for p in range(PROCS)]
 print("gen rc", [p.wait() for p in procs], "clean games", len(glob.glob(os.path.join(clean, "*.npz"))), f"[{time.time() - t0:.0f}s]", flush=True)
@@ -71,7 +74,7 @@ if not DRY:
     gen = os.path.join(rl, "gen_wait.py")
     if os.path.exists(gen):
         wait = os.path.join(output, "wait")
-        r = subprocess.run([sys.executable, gen, "--student", m1.replace(".pt", "_best.pt"), "--agent", A("e082"),
+        r = subprocess.run([sys.executable, gen, "--student", m1.replace(".pt", "_best.pt"), "--agent", A_t("e082"),
                             "--opp", *panel, "--seed0", "260000", "--games", "200", "--out", wait,
                             "--seeds", "8", "--treq", "2.0"], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"))
         print(f"wait-gen rc {r.returncode}", flush=True)
@@ -92,12 +95,12 @@ with open(os.path.join(output, "eval.txt"), "a") as rep:
         if not os.path.exists(ck): continue
         tag = os.path.basename(ck)
         for opp, games, seed0 in (("e072", 2 if DRY else 32, 5300), ("v41", 2 if DRY else 32, 5300), ("v41", 2, 5000)):
-            t0 = time.time(); r = subprocess.run([sys.executable, os.path.join(rl, "raw.py"), ck, "--games", str(games), "--vs", A(opp),
+            t0 = time.time(); r = subprocess.run([sys.executable, os.path.join(rl, "raw.py"), ck, "--games", str(games), "--vs", A_p(opp),
                                                   "--seed0", str(seed0)], cwd=rl, env=env, capture_output=True, text=True)
             line = (r.stdout.strip().splitlines() or [r.stderr[-300:]])[-1]; print(f"mkt {tag} vs {opp} s{seed0}: {line} [{time.time() - t0:.0f}s]", flush=True); rep.write(f"mkt {tag} vs {opp} s{seed0}: {line}\n"); rep.flush()
     # t168 probe on the 5014 board (regen 2 teacher games; fast)
     pdir = os.path.join(output, "probe")
-    r = subprocess.run([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A("e082"), "--opp", A("v41"),
+    r = subprocess.run([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A_t("e082"), "--opp", A_p("v41"),
                         "--seed0", "5014", "--games", "2", "--out", pdir], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"),
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-300:]
