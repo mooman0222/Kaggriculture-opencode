@@ -88,7 +88,8 @@ if not DRY:
                                 os.path.join(wait, "*.npz"), "--out", m2, "--init", m1.replace(".pt", "_best.pt"),
                                 "--epochs", "4", "--bs", "512", "--lr", "3e-4", "--market-only",
                                 "--patience", "2", "--min-delta", "0.005"], cwd=rl, env=env)
-            print(f"M2 train rc {r.returncode} [{time.time() - t0:.0f}s]", flush=True); assert r.returncode == 0
+            print(f"M2 train rc {r.returncode} [{time.time() - t0:.0f}s]", flush=True)
+            if r.returncode != 0: print("M2 train failed; shipping M1 only", flush=True); m2 = m1
     else:
         print("no gen_wait.py: shipping catch-up only (M1)", flush=True)
 
@@ -100,10 +101,34 @@ with open(os.path.join(output, "eval.txt"), "a") as rep:
             t0 = time.time(); r = subprocess.run([sys.executable, os.path.join(rl, "raw.py"), ck, "--games", str(games), "--vs", A_p(opp),
                                                   "--seed0", str(seed0)], cwd=rl, env=env, capture_output=True, text=True)
             line = (r.stdout.strip().splitlines() or [r.stderr[-300:]])[-1]; print(f"mkt {tag} vs {opp} s{seed0}: {line} [{time.time() - t0:.0f}s]", flush=True); rep.write(f"mkt {tag} vs {opp} s{seed0}: {line}\n"); rep.flush()
-    # t168 probe on the 5014 board (regen 2 teacher games; fast)
-    pdir = os.path.join(output, "probe")
-    r = subprocess.run([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A_t("e082"), "--opp", A_p("v41"),
-                        "--seed0", "5014", "--games", "2", "--out", pdir], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"),
-                       capture_output=True, text=True)
-    assert r.returncode == 0, r.stderr[-300:]
+    # t168 probe on the 5014 board (regen 2 teacher games; fast). Non-fatal: eval.txt
+    # must survive even if this fails (Kaggle keeps outputs only on COMPLETE).
+    try:
+        pdir = os.path.join(output, "probe")
+        r = subprocess.run([sys.executable, os.path.join(rl, "gen_selfplay.py"), "--raw", "--agent", A_t("e082"), "--opp", A_p("v41"),
+                            "--seed0", "5014", "--games", "2", "--out", pdir], cwd=rl, env=dict(env, OMP_NUM_THREADS="1"),
+                           capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr[-300:]
+        pfile = os.path.join(pdir, "5014_s0.npz")
+        psell = """
+import sys
+sys.path.insert(0, %r)
+import numpy as np, torch
+from raw import Policy4, KINDS, KIND_INDEX
+SF = KIND_INDEX['SELL_FERTILIZER']
+a = np.load(%r); t = 168
+model = Policy4()
+for ck in %r:
+    sd = torch.load(ck, map_location='cpu'); model.load_state_dict(sd, strict=True); model.eval()
+    with torch.no_grad():
+        o = model(torch.from_numpy(a['tiles'][t:t+1]).float(), torch.from_numpy(a['units'][t:t+1]).float(),
+                  torch.from_numpy(a['items'][t:t+1]), torch.from_numpy(a['glob'][t:t+1]))
+        p = o['mkind'][0, 0].softmax(-1); ps = float(p[SF]); ph = float(p[KIND_INDEX['HIRE']])
+        print(f"t168probe {ck.split('_best')[-1] or ck.split('_ep')[-1]}: P(SELL)={ps:.3f} P(HIRE)={ph:.3f} label={KINDS[int(a['mk'][t,0])]}", flush=True)
+""" % (rl, pfile, [c for c in ([m1] if DRY else [m1.replace(".pt", "_best.pt"), m2.replace(".pt", "_best.pt")]) if os.path.exists(c)])
+        r = subprocess.run([sys.executable, "-c", psell], cwd=rl, env=env, capture_output=True, text=True)
+        print(r.stdout.strip() or r.stderr[-500:], flush=True)
+        with open(os.path.join(output, "eval.txt"), "a") as rep: rep.write(r.stdout); rep.flush()
+    except Exception as e:
+        print(f"probe skipped: {type(e).__name__} {str(e)[:200]}", flush=True)
 print("ALL DONE", flush=True)
