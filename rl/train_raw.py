@@ -44,10 +44,6 @@ def main():
     dev = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     model = Policy4().to(dev)
     if a.init: model.load_state_dict(torch.load(a.init, map_location=dev)); print("init from", a.init, flush=True)
-    if a.market_init:
-        donor = torch.load(a.market_init, map_location=dev)
-        model.load_state_dict({k: v for k, v in donor.items() if "mkind" in k or "mqty" in k}, strict=False)
-        print("market heads from", a.market_init, flush=True)
     if a.market_only:
         for n, p in model.named_parameters():
             if "mkind" not in n and "mqty" not in n: p.requires_grad = False
