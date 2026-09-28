@@ -49,7 +49,7 @@ if __name__ == "__main__":
         for s in (0, 1):
             if team_skip and names[s] == team_skip: continue
             jobs.append((f, s))
-    with Pool(4, initializer=init, initargs=(cands,)) as pool:
+    with Pool(int(os.environ.get("POOL", "4")), initializer=init, initargs=(cands,)) as pool:
         rows = [x for x in pool.imap_unordered(one, jobs) if x]
     json.dump(rows, open(outp, "w"))
     import collections
