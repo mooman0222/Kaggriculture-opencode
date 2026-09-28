@@ -9,8 +9,8 @@ ahmedberatozer 氏は **1 日 1〜2 版**を公開する。09-15〜17 の 3 日�
 kaggle kernels list --competition kaggriculture --sort-by dateRun --page-size 40
 kaggle kernels pull ahmedberatozer/<ref> -p tmp/nb/<ref> -m
 ```
-ipynb の cell 4 が `SOURCE_BYTES = b''.join((...))` + `EXPECTED_MAIN_SHA256`。
-`MAIN = WORKDIR` の手前までを `exec` して取り出し、**sha256 を照合してから**書き出す (第三者コードを丸ごと実行しない)。
+取り出しは **`tests/nb_extract.py tmp/nb/<ref> agents/pub_<tag>`** (ast で定数だけ復号、sha256 照合、既存 `agents/pub_*` / `third_party/public_agents/*` と同一なら再掲と報告。
+FILES dict / AGENT_B64 / ARCHIVE_B85 / ARCHIVE_PARTS / %%writefile の 5 形式に対応)。ノートのコードは exec しない。
 **罠**: 人気ノートが既存版の再掲のことがある (flexonafft「Multi-Route Farming Agent」93 票は v45 とバイト一致)。
 取り込む前に既存の `third_party/public_agents/*/main.py` と sha256 を突き合わせる。
 
