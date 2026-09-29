@@ -6,7 +6,7 @@
 対応する埋め込み形: FILES={'main.py': b85+zlib} / AGENT_B64 (gzip+b64) / ARCHIVE_B85 (tar.gz) / ARCHIVE_PARTS.append(...) (tar.gz) / %%writefile。
 EXPECTED_MAIN_SHA256 等があれば照合する。既存の agents/pub_* ・ third_party/public_agents/* と同一ハッシュなら再掲と報告する。
 """
-import ast, base64, glob, gzip, hashlib, io, json, os, sys, tarfile, zlib
+import ast, base64, glob, gzip, hashlib, io, json, lzma, os, sys, tarfile, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -41,6 +41,27 @@ def extract(nb_path):
     for src in cells:
         L = literals(src)
         expect = expect or L.get("EXPECTED_MAIN_SHA256") or (L.get("EXPECTED") or {}).get("main.py")
+        if "PAYLOAD_B85" in L:
+            blob = lzma.decompress(base64.b85decode(L["PAYLOAD_B85"]))
+            hashes = L.get("EXPECTED_SHA256")
+            if isinstance(hashes, dict):
+                stream = io.BytesIO(blob)
+                def take(n):
+                    data = stream.read(n)
+                    if len(data) != n:
+                        raise ValueError("truncated payload bundle")
+                    return data
+                files = {}
+                for _ in range(int.from_bytes(take(2), "big")):
+                    name = take(int.from_bytes(take(2), "big")).decode()
+                    data = take(int.from_bytes(take(8), "big"))
+                    if name in files or hashlib.sha256(data).hexdigest() != hashes.get(name):
+                        raise ValueError(f"duplicate file or SHA mismatch: {name}")
+                    files[name] = data
+                if stream.read(1):
+                    raise ValueError("trailing payload bundle data")
+                return files, hashes.get("main.py")
+            return {"main.py": blob}, expect
         if "FILES" in L:
             return {k: zlib.decompress(base64.b85decode(v)) for k, v in L["FILES"].items()}, expect
         if "AGENT_B64" in L:
@@ -60,12 +81,14 @@ def main():
     nb = src if src.endswith(".ipynb") else glob.glob(os.path.join(src, "*.ipynb"))[0]
     files, expect = extract(nb)
     main_sha = hashlib.sha256(files["main.py"]).hexdigest()
+    if expect and expect != main_sha:
+        raise SystemExit("SHA MISMATCH — refusing to write extracted files")
     known = {hashlib.sha256(open(p, "rb").read()).hexdigest(): p for p in glob.glob(f"{ROOT}/agents/pub_*/main.py") + glob.glob(f"{ROOT}/third_party/public_agents/*/main.py")}
     if main_sha in known:
         print(f"same bytes as {os.path.relpath(known[main_sha], ROOT)} (sha {main_sha[:12]}) — 再掲。書き出さない"); return
     os.makedirs(out, exist_ok=True)
     for name, data in files.items():
-        if name in ("main.py", "LICENSE.txt", "NOTICE.txt"):
+        if name in ("main.py", "base_agent.py", "shop_predictor.py", "shop_overlay.py", "LICENSE.txt", "NOTICE.txt"):
             open(os.path.join(out, name), "wb").write(data)
     print(f"{out}/main.py {len(files['main.py'])} B sha {main_sha[:12]}", "sha OK" if expect == main_sha else ("SHA MISMATCH" if expect else "(no expected sha in notebook)"))
     last = [l for l in files["main.py"].decode(errors="replace").split("\n") if l.startswith("agent") and "=" in l]

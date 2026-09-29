@@ -89,11 +89,19 @@ def init(base_path, vs_path, family, opts=None):
     G["family"] = family
 
 
-def play(ep, plan, mode):
+def play(ep, plan, mode, sold=None):
+    """sold (dict) を渡すと、自席が出した (day, item) ごとの SELL 数量を書き込む (候補の枝刈り用)。"""
     m = G["m"]
     for k in ("_LIVE", "_ROUTER", "_POLICY"):
         if hasattr(m, k): setattr(m, k, None)
     ag = make_agent(m, plan, mode, G["family"]); me = ep["me"]
+    if sold is not None:
+        inner = ag
+        def ag(obs):
+            a = inner(obs); d = int(obs["step"]) // 24
+            for o in (a.get("market") or []):
+                if o and o[0] == "SELL" and len(o) >= 2 and o[1] in ITEMS: sold[(d, o[1])] = sold.get((d, o[1]), 0) + qty(o)
+            return a
     if ep.get("tape") is not None:
         g = kagsim.Game(ep["seed"], 720, ep["shops"])
         while not g.done:
@@ -164,18 +172,23 @@ def run(ep):
         plan = {tuple(x) for x in ep["plan"]}
         return dict(eid=ep["eid"], me=ep["me"], opp=ep.get("opp", ""), seed=ep["seed"], base=ep["base"], dump=ep["base"], cap6=ep["base"],
                     greedy=ep["greedy"], plan=sorted(plan), secs=round(time.time() - t0), feat=features(ep, plan))
-    base = play(ep, set(), None)
+    sold = {}
+    base = play(ep, set(), None, sold)
     dump = play(ep, set(), "dump") if G.get("static") else base
     cap6 = play(ep, set(), "cap6") if G.get("static") else base
     plan, best = set(), base
+    skipped = 0
     for day in range(G.get("d0", 3), G.get("d1", 30)):
         for it in ITEMS:
+            if G["family"] == "hold" and sold.get((day, it), 0) <= 0:
+                skipped += 1; continue  # 土台がその日その品目を売らないなら hold は恒等 (厳密な枝刈り)
             cand = plan | {(day, it)}
-            v = play(ep, cand, None)
+            new_sold = {}
+            v = play(ep, cand, None, new_sold)
             if v > best + 1:
-                plan, best = cand, v
+                plan, best, sold = cand, v, new_sold
     out = dict(eid=ep["eid"], me=ep["me"], opp=ep.get("opp", ""), seed=ep["seed"], base=base, dump=dump, cap6=cap6, greedy=best,
-               plan=sorted(plan), secs=round(time.time() - t0))
+               plan=sorted(plan), skipped=skipped, secs=round(time.time() - t0))
     if G.get("feat"):
         out["feat"] = features(ep, plan)
     return out
