@@ -22,7 +22,17 @@ def literals(src):
             try:
                 out[node.targets[0].id] = ast.literal_eval(node.value)
             except Exception:
-                pass
+                value = node.value
+                # Explicit byte-literal concatenation only, never execute a notebook call.
+                if (isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute)
+                        and value.func.attr == 'join' and isinstance(value.func.value, ast.Constant)
+                        and value.func.value.value == b'' and len(value.args) == 1 and not value.keywords):
+                    try:
+                        chunks = ast.literal_eval(value.args[0])
+                    except (ValueError, TypeError, SyntaxError):
+                        continue
+                    if isinstance(chunks, (list, tuple)) and all(isinstance(x, bytes) for x in chunks):
+                        out[node.targets[0].id] = b''.join(chunks)
         elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) and getattr(node.value.func, "attr", "") == "append" \
                 and getattr(node.value.func.value, "id", "") == "ARCHIVE_PARTS":
             out.setdefault("ARCHIVE_PARTS", []).append(ast.literal_eval(node.value.args[0]))
@@ -41,6 +51,8 @@ def extract(nb_path):
     for src in cells:
         L = literals(src)
         expect = expect or L.get("EXPECTED_MAIN_SHA256") or (L.get("EXPECTED") or {}).get("main.py")
+        if isinstance(L.get('SOURCE_BYTES'), bytes):
+            return {'main.py': L['SOURCE_BYTES']}, expect
         if "PAYLOAD_B85" in L:
             blob = lzma.decompress(base64.b85decode(L["PAYLOAD_B85"]))
             hashes = L.get("EXPECTED_SHA256")
